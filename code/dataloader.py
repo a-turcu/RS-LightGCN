@@ -233,44 +233,15 @@ class Loader(BasicDataset):
         train_file = path + '/train.txt'
         test_file = path + '/test.txt'
         self.path = path
-        trainUniqueUsers, trainItem, trainUser = [], [], []
-        testUniqueUsers, testItem, testUser = [], [], []
-        self.traindataSize = 0
-        self.testDataSize = 0
+        self.trainUniqueUsers, self.trainUser, self.trainItem, self.traindataSize = self.load_and_extract_data_file(
+            data_file=train_file
+        )
+        self.testUniqueUsers, self.testUser, self.testItem, self.testDataSize = self.load_and_extract_data_file(
+            data_file=test_file
+        )
 
-        with open(train_file) as f:
-            for l in f.readlines():
-                if len(l) > 0:
-                    l = l.strip('\n').split(' ')
-                    items = [int(i) for i in l[1:]]
-                    uid = int(l[0])
-                    trainUniqueUsers.append(uid)
-                    trainUser.extend([uid] * len(items))
-                    trainItem.extend(items)
-                    self.m_item = max(self.m_item, max(items))
-                    self.n_user = max(self.n_user, uid)
-                    self.traindataSize += len(items)
-        self.trainUniqueUsers = np.array(trainUniqueUsers)
-        self.trainUser = np.array(trainUser)
-        self.trainItem = np.array(trainItem)
-
-        with open(test_file) as f:
-            for l in f.readlines():
-                if len(l) > 0:
-                    l = l.strip('\n').split(' ')
-                    items = [int(i) for i in l[1:]]
-                    uid = int(l[0])
-                    testUniqueUsers.append(uid)
-                    testUser.extend([uid] * len(items))
-                    testItem.extend(items)
-                    self.m_item = max(self.m_item, max(items))
-                    self.n_user = max(self.n_user, uid)
-                    self.testDataSize += len(items)
         self.m_item += 1
         self.n_user += 1
-        self.testUniqueUsers = np.array(testUniqueUsers)
-        self.testUser = np.array(testUser)
-        self.testItem = np.array(testItem)
         
         self.Graph = None
         print(f"{self.trainDataSize} interactions for training")
@@ -288,6 +259,23 @@ class Loader(BasicDataset):
         self._allPos = self.getUserPosItems(list(range(self.n_user)))
         self.__testDict = self.__build_test()
         print(f"{world.dataset} is ready to go")
+
+    def load_and_extract_data_file(self, data_file):
+        dataUniqueUsers, dataItem, dataUser = [], [], []
+        dataSize = 0
+        with open(data_file) as f:
+            for l in f.readlines():
+                if len(l) > 0:
+                    l = l.strip('\n').split(' ')
+                    items = [int(i) for i in l[1:]]
+                    uid = int(l[0])
+                    dataUniqueUsers.append(uid)
+                    dataUser.extend([uid] * len(items))
+                    dataItem.extend(items)
+                    self.m_item = max(self.m_item, max(items))
+                    self.n_user = max(self.n_user, uid)
+                    dataSize += len(items)
+        return np.array(dataUniqueUsers), np.array(dataUser), np.array(dataItem), dataSize
 
     @property
     def n_users(self):
