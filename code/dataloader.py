@@ -23,6 +23,7 @@ from time import time
 class BasicDataset(Dataset):
     def __init__(self):
         print("init dataset")
+        self.UserItemNet = {}
     
     @property
     def n_users(self):
@@ -46,16 +47,12 @@ class BasicDataset(Dataset):
     
     def getUserItemFeedback(self, users, items):
         raise NotImplementedError
-    
+
     def getUserPosItems(self, users):
-        raise NotImplementedError
-    
-    def getUserNegItems(self, users):
-        """
-        not necessary for large dataset
-        it's stupid to return all neg items in super large dataset
-        """
-        raise NotImplementedError
+        posItems = []
+        for user in users:
+            posItems.append(self.UserItemNet[user].nonzero()[1])
+        return posItems
     
     def getSparseGraph(self):
         """
@@ -185,12 +182,6 @@ class LastFM(BasicDataset):
         """
         # print(self.UserItemNet[users, items])
         return np.array(self.UserItemNet[users, items]).astype('uint8').reshape((-1, ))
-    
-    def getUserPosItems(self, users):
-        posItems = []
-        for user in users:
-            posItems.append(self.UserItemNet[user].nonzero()[1])
-        return posItems
     
     def getUserNegItems(self, users):
         negItems = []
@@ -381,15 +372,3 @@ class Loader(BasicDataset):
         """
         # print(self.UserItemNet[users, items])
         return np.array(self.UserItemNet[users, items]).astype('uint8').reshape((-1,))
-
-    def getUserPosItems(self, users):
-        posItems = []
-        for user in users:
-            posItems.append(self.UserItemNet[user].nonzero()[1])
-        return posItems
-
-    # def getUserNegItems(self, users):
-    #     negItems = []
-    #     for user in users:
-    #         negItems.append(self.allNeg[user])
-    #     return negItems
