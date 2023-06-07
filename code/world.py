@@ -7,71 +7,67 @@ Xiangnan He et al. LightGCN: Simplifying and Powering Graph Convolution Network 
 '''
 
 import os
+import sys
 from os.path import join
 import torch
 from enum import Enum
 from parse import parse_args
 import multiprocessing
 
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
-args = parse_args()
 
-ROOT_PATH = os.path.dirname(os.path.dirname(__file__))
-CODE_PATH = join(ROOT_PATH, 'code')
-DATA_PATH = join(ROOT_PATH, 'data')
-BOARD_PATH = join(CODE_PATH, 'runs')
-FILE_PATH = join(CODE_PATH, 'checkpoints')
-import sys
-sys.path.append(join(CODE_PATH, 'sources'))
+class Config:
+    def __init__(self):
+        all_dataset = ['lastfm', 'gowalla', 'yelp2018', 'amazon-book']
+        all_models = ['mf', 'lgn']
+        os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
+        args = parse_args()
 
-if not os.path.exists(FILE_PATH):
-    os.makedirs(FILE_PATH, exist_ok=True)
+        self.root_path = os.path.dirname(os.path.dirname(__file__))
+        self.code_path = join(self.root_path, 'code')
+        self.data_path = join(self.root_path, 'data')
+        self.board_path = join(self.code_path, 'runs')
+        self.file_path = join(self.code_path, 'checkpoints')
 
+        sys.path.append(join(self.code_path, 'sources'))
 
-config = {}
-all_dataset = ['lastfm', 'gowalla', 'yelp2018', 'amazon-book']
-all_models  = ['mf', 'lgn']
-# config['batch_size'] = 4096
-config['bpr_batch_size'] = args.bpr_batch
-config['latent_dim_rec'] = args.recdim
-config['lightGCN_n_layers']= args.layer
-config['dropout'] = args.dropout
-config['keep_prob']  = args.keepprob
-config['A_n_fold'] = args.a_fold
-config['test_u_batch_size'] = args.testbatch
-config['multicore'] = args.multicore
-config['lr'] = args.lr
-config['decay'] = args.decay
-config['pretrain'] = args.pretrain
-config['A_split'] = False
-config['bigdata'] = False
+        if not os.path.exists(self.file_path):
+            os.makedirs(self.file_path, exist_ok=True)
 
-GPU = torch.cuda.is_available()
-device = torch.device('cuda' if GPU else "cpu")
-CORES = multiprocessing.cpu_count() // 2
-seed = args.seed
+        self.bpr_batch_size = args.bpr_batch
+        self.latent_dim_rec = args.recdim
+        self.lightGCN_n_layers = args.layer
+        self.dropout = args.dropout
+        self.keep_prob = args.keepprob
+        self.a_fold= args.a_fold
+        self.test_u_batch_size = args.testbatch
+        self.multicore = args.multicore
+        self.lr = args.lr
+        self.decay = args.decay
+        self.pretrain = args.pretrain
+        self.A_split = False
+        self.bigdata = False
+        self.gpu = torch.cuda.is_available()
+        self.device = torch.device('cuda' if self.gpu else "cpu")
+        self.cores = multiprocessing.cpu_count() // 2
+        self.seed = args.seed
 
-dataset = args.dataset
-model_name = args.model
-if dataset not in all_dataset:
-    raise NotImplementedError(f"Haven't supported {dataset} yet!, try {all_dataset}")
-if model_name not in all_models:
-    raise NotImplementedError(f"Haven't supported {model_name} yet!, try {all_models}")
+        self.dataset = args.dataset
+        self.model_name = args.model
+        if self.dataset not in all_dataset:
+            raise NotImplementedError(f"Haven't supported {self.dataset} yet!, try {all_dataset}")
+        if self.model_name not in all_models:
+            raise NotImplementedError(f"Haven't supported {self.model_name} yet!, try {all_models}")
 
-
-
-
-TRAIN_epochs = args.epochs
-LOAD = args.load
-PATH = args.path
-topks = eval(args.topks)
-tensorboard = args.tensorboard
-comment = args.comment
-# let pandas shut up
-from warnings import simplefilter
-simplefilter(action="ignore", category=FutureWarning)
-
+        self.train_epochs = args.epochs
+        self.load_bool = args.load
+        self.weight_path = args.path
+        self.topks = eval(args.topks)
+        self.tensorboard = args.tensorboard
+        self.comment = args.comment
+        # let pandas shut up
+        from warnings import simplefilter
+        simplefilter(action="ignore", category=FutureWarning)
 
 
 def cprint(words : str):

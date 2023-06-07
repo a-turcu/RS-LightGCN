@@ -7,16 +7,15 @@ Xiangnan He et al. LightGCN: Simplifying and Powering Graph Convolution Network 
 Design Dataset here
 Every dataset's index has to start at 0
 """
-import os
+
 from os.path import join
-import sys
 import torch
 import numpy as np
 import pandas as pd
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 from scipy.sparse import csr_matrix
 import scipy.sparse as sp
-import world
+# import world
 from world import cprint
 from time import time
 
@@ -205,31 +204,36 @@ class LastFM(BasicDataset):
     def __len__(self):
         return len(self.trainUniqueUsers)
 
+
 class Loader(BasicDataset):
     """
     Dataset type for pytorch \n
     Incldue graph information
     gowalla dataset
+
+
     """
 
-    def __init__(self,config = world.config,path="../data/gowalla"):
+    def __init__(self, config, data_path='../data/gowalla', minimal_bool=False):
         # train or test
-        cprint(f'loading [{path}]')
-        self.split = config['A_split']
-        self.folds = config['A_n_fold']
+        cprint(f'loading [{config.weight_path}]')
+        self.split = config.A_split
+        self.folds = config.a_fold
         self.mode_dict = {'train': 0, "test": 1}
         self.mode = self.mode_dict['train']
         self.n_user = 0
         self.m_item = 0
-        train_file = path + '/train.txt'
-        test_file = path + '/test.txt'
-        self.path = path
+        train_file = data_path + '/train.txt'
+        test_file = data_path + '/test.txt'
+        self.path = data_path
         self.trainUniqueUsers, self.trainUser, self.trainItem, self.traindataSize = self.load_and_extract_data_file(
             data_file=train_file
         )
         self.testUniqueUsers, self.testUser, self.testItem, self.testDataSize = self.load_and_extract_data_file(
             data_file=test_file
         )
+        if minimal_bool:
+            return
 
         self.m_item += 1
         self.n_user += 1
@@ -237,7 +241,7 @@ class Loader(BasicDataset):
         self.Graph = None
         print(f"{self.trainDataSize} interactions for training")
         print(f"{self.testDataSize} interactions for testing")
-        print(f"{world.dataset} Sparsity : {(self.trainDataSize + self.testDataSize) / self.n_users / self.m_items}")
+        print(f"{config.dataset} Sparsity : {(self.trainDataSize + self.testDataSize) / self.n_users / self.m_items}")
 
         # (users,items), bipartite graph
         self.UserItemNet = csr_matrix((np.ones(len(self.trainUser)), (self.trainUser, self.trainItem)),
@@ -249,24 +253,50 @@ class Loader(BasicDataset):
         # pre-calculate
         self._allPos = self.getUserPosItems(list(range(self.n_user)))
         self.__testDict = self.__build_test()
-        print(f"{world.dataset} is ready to go")
+        print(f"{config.dataset} is ready to go")
 
     def load_and_extract_data_file(self, data_file):
+        """
+        This method reads the train or test set text file and returns a tuple with information about the dataset.
+
+        In the text file, each line first contains the user_id followed by the list of items the user interacted with.
+        dataUniqueUsers contains the user_ids in a list.
+        dataUser, dataItem are lists that contain all the user item pairs.
+        dataSize is the length of the dataUser, dataItem lists.
+        """
+        # Create list to store the unique users, and the user item pairs.
         dataUniqueUsers, dataItem, dataUser = [], [], []
+        # Create a count of the user item pairs.
         dataSize = 0
-        with open(data_file) as f:
-            for l in f.readlines():
-                if len(l) > 0:
-                    l = l.strip('\n').split(' ')
-                    items = [int(i) for i in l[1:]]
-                    uid = int(l[0])
-                    dataUniqueUsers.append(uid)
-                    dataUser.extend([uid] * len(items))
-                    dataItem.extend(items)
-                    self.m_item = max(self.m_item, max(items))
-                    self.n_user = max(self.n_user, uid)
-                    dataSize += len(items)
+        # Read the file
+        lines = self.load_data_file(data_file)
+        # Loop through the data file lines
+        for l in lines:
+            # Clean line
+            l = l.strip('\n').split(' ')
+            # Extract items for this line's user
+            items = [int(i) for i in l[1:]]
+            # Extract the user id
+            uid = int(l[0])
+            # Store the user id
+            dataUniqueUsers.append(uid)
+            # Add extend the user list with the user id for each item
+            dataUser.extend([uid] * len(items))
+            # Add the items to the item list
+            dataItem.extend(items)
+            # Track the max item id
+            self.m_item = max(self.m_item, max(items))
+            # Track the max user id
+            self.n_user = max(self.n_user, uid)
+            # Count the total items
+            dataSize += len(items)
         return np.array(dataUniqueUsers), np.array(dataUser), np.array(dataItem), dataSize
+
+    @staticmethod
+    def load_data_file(data_file):
+        with open(data_file) as f:
+            # Loop through the lines
+            return [l for l in f.readlines() if len(l) > 0]
 
     @property
     def n_users(self):
@@ -309,16 +339,21 @@ class Loader(BasicDataset):
         return torch.sparse.FloatTensor(index, data, torch.Size(coo.shape))
         
     def getSparseGraph(self):
+        """
+        This method creates a sparse matrix of size
+
+        """
         print("loading adjacency matrix")
         if self.Graph is None:
             try:
                 pre_adj_mat = sp.load_npz(self.path + '/s_pre_adj_mat.npz')
                 print("successfully loaded...")
                 norm_adj = pre_adj_mat
-            except :
+            except:
                 print("generating adjacency matrix")
                 s = time()
-                adj_mat = sp.dok_matrix((self.n_users + self.m_items, self.n_users + self.m_items), dtype=np.float32)
+                mat_len = self.n_users + self.m_items
+                adj_mat = sp.dok_matrix((mat_len, mat_len), dtype=np.float32)
                 adj_mat = adj_mat.tolil()
                 R = self.UserItemNet.tolil()
                 adj_mat[:self.n_users, self.n_users:] = R

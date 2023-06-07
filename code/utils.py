@@ -105,12 +105,14 @@ def set_seed(seed):
         torch.cuda.manual_seed_all(seed)
     torch.manual_seed(seed)
 
-def getFileName():
-    if world.model_name == 'mf':
-        file = f"mf-{world.dataset}-{world.config['latent_dim_rec']}.pth.tar"
-    elif world.model_name == 'lgn':
-        file = f"lgn-{world.dataset}-{world.config['lightGCN_n_layers']}-{world.config['latent_dim_rec']}.pth.tar"
-    return os.path.join(world.FILE_PATH,file)
+def getFileName(config):
+    if config.model_name == 'mf':
+        file = f"mf-{config.dataset}-{config.latent_dim_rec}.pth.tar"
+    elif config.model_name == 'lgn':
+        file = f"lgn-{config.dataset}-{config.lightGCN_n_layers}-{config.latent_dim_rec}.pth.tar"
+    else:
+        raise NotImplementedError(f'getFileName does not have a path for the {config.model_name} model.')
+    return os.path.join(config.file_path, file)
 
 def minibatch(*tensors, **kwargs):
 

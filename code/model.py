@@ -81,26 +81,26 @@ class PureMF(BasicModel):
         return self.f(scores)
 
 class LightGCN(BasicModel):
-    def __init__(self, 
-                 config:dict, 
+    def __init__(self,
+                 config: world.Config,
                  dataset:BasicDataset):
         super(LightGCN, self).__init__()
         self.config = config
-        self.dataset : dataloader.BasicDataset = dataset
+        self.dataset : BasicDataset = dataset
         self.__init_weight()
 
     def __init_weight(self):
-        self.num_users  = self.dataset.n_users
+        self.num_users = self.dataset.n_users
         self.num_items  = self.dataset.m_items
-        self.latent_dim = self.config['latent_dim_rec']
-        self.n_layers = self.config['lightGCN_n_layers']
-        self.keep_prob = self.config['keep_prob']
-        self.A_split = self.config['A_split']
+        self.latent_dim = self.config.latent_dim_rec
+        self.n_layers = self.config.lightGCN_n_layers
+        self.keep_prob = self.config.keep_prob
+        self.A_split = self.config.A_split
         self.embedding_user = torch.nn.Embedding(
             num_embeddings=self.num_users, embedding_dim=self.latent_dim)
         self.embedding_item = torch.nn.Embedding(
             num_embeddings=self.num_items, embedding_dim=self.latent_dim)
-        if self.config['pretrain'] == 0:
+        if self.config.pretrain == 0:
 #             nn.init.xavier_uniform_(self.embedding_user.weight, gain=1)
 #             nn.init.xavier_uniform_(self.embedding_item.weight, gain=1)
 #             print('use xavier initilizer')
@@ -109,7 +109,7 @@ class LightGCN(BasicModel):
             nn.init.normal_(self.embedding_item.weight, std=0.1)
             world.cprint('use NORMAL distribution initilizer')
         else:
-            self.embedding_user.weight.data.copy_(torch.from_numpy(self.config['user_emb']))
+            self.embedding_user.weight.data.copy_(torch.from_numpy(self.dataset.user_emb))
             self.embedding_item.weight.data.copy_(torch.from_numpy(self.config['item_emb']))
             print('use pretarined data')
         self.f = nn.Sigmoid()
@@ -140,12 +140,16 @@ class LightGCN(BasicModel):
     def computer(self):
         """
         propagate methods for lightGCN
-        """       
+        """
+        # Extract the weights of the user and item embeddings
         users_emb = self.embedding_user.weight
         items_emb = self.embedding_item.weight
+        # Concatenate the user and item embeddings
         all_emb = torch.cat([users_emb, items_emb])
         #   torch.split(all_emb , [self.num_users, self.num_items])
+        # Add the initial embeding to the list of embeddings
         embs = [all_emb]
+        # Dropout
         if self.config['dropout']:
             if self.training:
                 print("droping")
@@ -154,7 +158,7 @@ class LightGCN(BasicModel):
                 g_droped = self.Graph        
         else:
             g_droped = self.Graph    
-        
+        # Loop through the layers
         for layer in range(self.n_layers):
             if self.A_split:
                 temp_emb = []
@@ -163,11 +167,15 @@ class LightGCN(BasicModel):
                 side_emb = torch.cat(temp_emb, dim=0)
                 all_emb = side_emb
             else:
+                # Matrix multiplication between the graph and the embeddings
                 all_emb = torch.sparse.mm(g_droped, all_emb)
             embs.append(all_emb)
+        # Stack the list of embeddings
         embs = torch.stack(embs, dim=1)
         #print(embs.size())
+        # Mean the embeddings from each layer
         light_out = torch.mean(embs, dim=1)
+        # Extract and return the user and item embeddings
         users, items = torch.split(light_out, [self.num_users, self.num_items])
         return users, items
     
