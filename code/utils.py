@@ -38,24 +38,24 @@ class Sampling:
             S = self.sampling.sample_negative(dataset.n_users, dataset.m_items,
                                          dataset.trainDataSize, allPos, neg_ratio)
         else:
-            S = UniformSample_original_python(dataset)
+            S = uniform_sample_original_python(dataset)
         return S
 
 
-class BPRLoss:
+class BrpLoss:
     def __init__(
             self,
-            recmodel: PairWiseModel,
+            rec_model: PairWiseModel,
             config: world.Config
     ):
-        self.model = recmodel
+        self.model = rec_model
         self.weight_decay = config.decay
         self.lr = config.lr
-        self.opt = optim.Adam(recmodel.parameters(), lr=self.lr)
+        self.opt = optim.Adam(rec_model.parameters(), lr=self.lr)
 
-    def stageOne(self, users, pos, neg):
+    def stage_one(self, users, pos, neg):
         loss, reg_loss = self.model.bpr_loss(users, pos, neg)
-        reg_loss = reg_loss*self.weight_decay
+        reg_loss = reg_loss * self.weight_decay
         loss = loss + reg_loss
 
         self.opt.zero_grad()
@@ -65,7 +65,7 @@ class BPRLoss:
         return loss.cpu().item()
 
 
-def UniformSample_original_python(dataset):
+def uniform_sample_original_python(dataset):
     """
     the original impliment of BPR Sampling in LightGCN
     :return:
@@ -108,7 +108,7 @@ def set_seed(seed):
     torch.manual_seed(seed)
 
 
-def getFileName(config):
+def get_file_name(config):
     if config.model_name == 'mf':
         file = f"mf-{config.dataset}-{config.latent_dim_rec}.pth.tar"
     elif config.model_name == 'lgn':
@@ -150,7 +150,7 @@ def shuffle(*arrays, **kwargs):
         return result
 
 
-class timer:
+class Timer:
     """
     Time context manager for lgcn_code block
         with timer():
@@ -163,8 +163,8 @@ class timer:
 
     @staticmethod
     def get():
-        if len(timer.TAPE) > 1:
-            return timer.TAPE.pop()
+        if len(Timer.TAPE) > 1:
+            return Timer.TAPE.pop()
         else:
             return -1
 
@@ -172,49 +172,49 @@ class timer:
     def dict(select_keys=None):
         hint = "|"
         if select_keys is None:
-            for key, value in timer.NAMED_TAPE.items():
+            for key, value in Timer.NAMED_TAPE.items():
                 hint = hint + f"{key}:{value:.2f}|"
         else:
             for key in select_keys:
-                value = timer.NAMED_TAPE[key]
+                value = Timer.NAMED_TAPE[key]
                 hint = hint + f"{key}:{value:.2f}|"
         return hint
 
     @staticmethod
     def zero(select_keys=None):
         if select_keys is None:
-            for key, value in timer.NAMED_TAPE.items():
-                timer.NAMED_TAPE[key] = 0
+            for key, value in Timer.NAMED_TAPE.items():
+                Timer.NAMED_TAPE[key] = 0
         else:
             for key in select_keys:
-                timer.NAMED_TAPE[key] = 0
+                Timer.NAMED_TAPE[key] = 0
 
     def __init__(self, tape=None, **kwargs):
         if kwargs.get('name'):
-            timer.NAMED_TAPE[kwargs['name']] = timer.NAMED_TAPE[
-                kwargs['name']] if timer.NAMED_TAPE.get(kwargs['name']) else 0.
+            Timer.NAMED_TAPE[kwargs['name']] = Timer.NAMED_TAPE[
+                kwargs['name']] if Timer.NAMED_TAPE.get(kwargs['name']) else 0.
             self.named = kwargs['name']
             if kwargs.get("group"):
                 #TODO: add group function
                 pass
         else:
             self.named = False
-            self.tape = tape or timer.TAPE
+            self.tape = tape or Timer.TAPE
 
     def __enter__(self):
-        self.start = timer.time()
+        self.start = Timer.time()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.named:
-            timer.NAMED_TAPE[self.named] += timer.time() - self.start
+            Timer.NAMED_TAPE[self.named] += Timer.time() - self.start
         else:
-            self.tape.append(timer.time() - self.start)
+            self.tape.append(Timer.time() - self.start)
 
 
 # ====================Metrics==============================
 # =========================================================
-def RecallPrecision_ATk(test_data, r, k):
+def recall_precision_at_k(test_data, r, k):
     """
     test_data should be a list? cause users may have different amount of pos items. shape (test_batch, k)
     pred_data : shape (test_batch, k) NOTE: pred_data should be pre-sorted
@@ -228,7 +228,7 @@ def RecallPrecision_ATk(test_data, r, k):
     return {'recall': recall, 'precision': precis}
 
 
-def MRRatK_r(r, k):
+def mrr_at_k(r, k):
     """
     Mean Reciprocal Rank
     """
@@ -238,7 +238,7 @@ def MRRatK_r(r, k):
     pred_data = pred_data.sum(1)
     return np.sum(pred_data)
 
-def NDCGatK_r(test_data,r,k):
+def ndcg_at_k_r(test_data, r, k):
     """
     Normalized Discounted Cumulative Gain
     rel_i = 1 or 0, so 2^{rel_i} - 1 = 1 or 0
@@ -259,7 +259,7 @@ def NDCGatK_r(test_data,r,k):
     ndcg[np.isnan(ndcg)] = 0.
     return np.sum(ndcg)
 
-def AUC(all_item_scores, dataset, test_data):
+def get_auc_score(all_item_scores, dataset, test_data):
     """
         design for a single user
     """
@@ -270,7 +270,7 @@ def AUC(all_item_scores, dataset, test_data):
     test_item_scores = all_item_scores[all_item_scores >= 0]
     return roc_auc_score(r, test_item_scores)
 
-def getLabel(test_data, pred_data):
+def get_label(test_data, pred_data):
     r = []
     for i in range(len(test_data)):
         groundTrue = test_data[i]

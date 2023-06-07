@@ -237,11 +237,11 @@ class Loader(BasicDataset):
         self.testUniqueUsers, self.testUser, self.testItem, self.testDataSize = self.load_and_extract_data_file(
             data_file=test_file
         )
-        if minimal_bool:
-            return
-
         self.m_item += 1
         self.n_user += 1
+
+        if minimal_bool:
+            return
 
         self.Graph = None
         print(f"{self.trainDataSize} interactions for training")

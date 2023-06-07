@@ -5,7 +5,7 @@ from world import cprint
 import torch
 from tensorboardX import SummaryWriter
 import time
-import Procedure
+import procedure
 from os.path import join
 from register import print_config_info, load_dataset
 
@@ -26,26 +26,26 @@ def run_training():
         'lgn': LightGCN
     }
     # Instantiate the recommender system model
-    Recmodel = models[config.model_name](config, dataset)
+    rec_model = models[config.model_name](config, dataset)
     # Move the model to the device
-    Recmodel = Recmodel.to(config.device)
+    rec_model = rec_model.to(config.device)
     # Instantiate the BPRLoss
-    bpr = utils.BPRLoss(Recmodel, config)
+    loss = utils.BrpLoss(rec_model, config)
 
-    weight_file = utils.getFileName(config)
+    weight_file = utils.get_file_name(config)
     print(f"load and save to {weight_file}")
     if config.load_bool:
         try:
-            Recmodel.load_state_dict(torch.load(weight_file, map_location=torch.device('cpu')))
+            rec_model.load_state_dict(torch.load(weight_file, map_location=torch.device('cpu')))
             cprint(f"loaded model weights from {weight_file}")
         except FileNotFoundError:
             print(f"{weight_file} not exists, start from beginning")
     # Instantiate the procedure manager
-    procedure_manager = Procedure.ProcedureManager(config)
+    procedure_manager = procedure.ProcedureManager(config)
 
     # init tensorboard
     if config.tensorboard:
-        w : SummaryWriter = SummaryWriter(
+        w: SummaryWriter = SummaryWriter(
             join(config.board_path, time.strftime("%m-%d-%Hh%Mm%Ss-") + "-" + config.comment)
         )
     else:
@@ -57,12 +57,12 @@ def run_training():
             start = time.time()
             if epoch % 10 == 0:
                 cprint("[TEST]")
-                procedure_manager.test(dataset, Recmodel, epoch, w, config.multicore)
+                procedure_manager.test(dataset, rec_model, epoch, w, config.multicore)
             output_information = procedure_manager.bpr_train_original(
-                dataset, Recmodel, bpr, epoch, w=w, config=config
+                dataset, rec_model, loss, epoch, w=w, config=config
             )
             print(f'EPOCH[{epoch+1}/{config.train_epochs}] {output_information}')
-            torch.save(Recmodel.state_dict(), weight_file)
+            torch.save(rec_model.state_dict(), weight_file)
     finally:
         if config.tensorboard:
             w.close()

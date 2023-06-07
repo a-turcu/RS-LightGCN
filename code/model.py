@@ -20,6 +20,7 @@ class BasicModel(nn.Module):
     def getUsersRating(self, users):
         raise NotImplementedError
 
+
 class PairWiseModel(BasicModel):
     def __init__(self):
         super(PairWiseModel, self).__init__()
@@ -33,6 +34,7 @@ class PairWiseModel(BasicModel):
             (log-loss, l2-loss)
         """
         raise NotImplementedError
+
 
 class PureMF(BasicModel):
     def __init__(self,
@@ -79,10 +81,13 @@ class PureMF(BasicModel):
         scores = torch.sum(users_emb*items_emb, dim=1)
         return self.f(scores)
 
+
 class LightGCN(BasicModel):
-    def __init__(self,
-                 config: world.Config,
-                 dataset:BasicDataset):
+    def __init__(
+            self,
+            config: world.Config,
+            dataset:BasicDataset
+    ):
         super(LightGCN, self).__init__()
         self.config = config
         self.dataset : BasicDataset = dataset
@@ -100,10 +105,10 @@ class LightGCN(BasicModel):
         self.embedding_item = torch.nn.Embedding(
             num_embeddings=self.num_items, embedding_dim=self.latent_dim)
         if self.config.pretrain == 0:
-#             nn.init.xavier_uniform_(self.embedding_user.weight, gain=1)
-#             nn.init.xavier_uniform_(self.embedding_item.weight, gain=1)
-#             print('use xavier initilizer')
-# random normal init seems to be a better choice when lightGCN actually don't use any non-linear activation function
+            #             nn.init.xavier_uniform_(self.embedding_user.weight, gain=1)
+            #             nn.init.xavier_uniform_(self.embedding_item.weight, gain=1)
+            #             print('use xavier initilizer')
+            # random normal init seems to be a better choice when lightGCN actually don't use any non-linear activation function
             nn.init.normal_(self.embedding_user.weight, std=0.1)
             nn.init.normal_(self.embedding_item.weight, std=0.1)
             world.cprint('use NORMAL distribution initilizer')

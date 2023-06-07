@@ -11,7 +11,7 @@ Design training and test process
 import numpy as np
 import torch
 import utils
-from utils import timer
+from utils import Timer
 import multiprocessing
 
 
@@ -24,11 +24,10 @@ class ProcedureManager:
         self.bpr_batch_size = config.bpr_batch_size
         self.test_u_batch_size = config.test_u_batch_size
 
-    def bpr_train_original(self, dataset, model, loss_class, epoch, w=None, config=None):
+    def bpr_train_original(self, dataset, model, loss, epoch, w=None, config=None):
         model.train()
-        bpr = loss_class
 
-        with timer(name="Sample"):
+        with Timer(name="Sample"):
             S = self.sampler_helper.UniformSample_original(dataset)
         users = torch.Tensor(S[:, 0]).long()
         posItems = torch.Tensor(S[:, 1]).long()
@@ -42,26 +41,25 @@ class ProcedureManager:
         aver_loss = 0.
         enumerator = enumerate(utils.train_minibatch(users, posItems, negItems, batch_size=self.bpr_batch_size))
         for batch_i, (batch_users, batch_pos, batch_neg) in enumerator:
-            cri = bpr.stageOne(batch_users, batch_pos, batch_neg)
+            cri = loss.stage_one(batch_users, batch_pos, batch_neg)
             aver_loss += cri
             if config.tensorboard:
                 w.add_scalar(f'BPRLoss/BPR', cri, epoch * int(len(users) / self.bpr_batch_size) + batch_i)
         aver_loss = aver_loss / total_batch
-        time_info = timer.dict()
-        timer.zero()
+        time_info = Timer.dict()
+        Timer.zero()
         return f"loss{aver_loss:.3f}-{time_info}"
-
 
     def test_one_batch(self, X):
         sorted_items = X[0].numpy()
         groundTrue = X[1]
-        r = utils.getLabel(groundTrue, sorted_items)
+        r = utils.get_label(groundTrue, sorted_items)
         pre, recall, ndcg = [], [], []
         for k in self.topks:
-            ret = utils.RecallPrecision_ATk(groundTrue, r, k)
+            ret = utils.recall_precision_at_k(groundTrue, r, k)
             pre.append(ret['precision'])
             recall.append(ret['recall'])
-            ndcg.append(utils.NDCGatK_r(groundTrue,r,k))
+            ndcg.append(utils.ndcg_at_k_r(groundTrue, r, k))
         return {
             'recall':np.array(recall),
             'precision':np.array(pre),

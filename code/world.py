@@ -50,8 +50,6 @@ class FakeArgs:
 
 class Config:
     def __init__(self):
-        all_dataset = ['lastfm', 'gowalla', 'yelp2018', 'amazon-book']
-        all_models = ['mf', 'lgn']
         # args = parse_args()
         args = FakeArgs()
         self.file_path = FILE_PATH
@@ -73,9 +71,11 @@ class Config:
         self.device = torch.device('cuda' if self.gpu else "cpu")
         self.cores = multiprocessing.cpu_count() // 2
         self.seed = args.seed
-
         self.dataset = args.dataset
         self.model_name = args.model
+
+        all_dataset = ['lastfm', 'gowalla', 'yelp2018', 'amazon-book']
+        all_models = ['mf', 'lgn']
         if self.dataset not in all_dataset:
             raise NotImplementedError(f"Haven't supported {self.dataset} yet!, try {all_dataset}")
         if self.model_name not in all_models:
