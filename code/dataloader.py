@@ -210,15 +210,13 @@ class Loader(BasicDataset):
     Dataset type for pytorch \n
     Incldue graph information
     gowalla dataset
-
-
     """
-
     def __init__(self, config, data_path='../data/gowalla', minimal_bool=False):
         # train or test
         cprint(f'loading [{config.weight_path}]')
         self.split = config.A_split
         self.folds = config.a_fold
+        self.device = config.device
         self.mode_dict = {'train': 0, "test": 1}
         self.mode = self.mode_dict['train']
         self.n_user = 0
@@ -327,7 +325,7 @@ class Loader(BasicDataset):
                 end = self.n_users + self.m_items
             else:
                 end = (i_fold + 1) * fold_len
-            A_fold.append(self._convert_sp_mat_to_sp_tensor(A[start:end]).coalesce().to(world.device))
+            A_fold.append(self._convert_sp_mat_to_sp_tensor(A[start:end]).coalesce().to(self.device))
         return A_fold
 
     def _convert_sp_mat_to_sp_tensor(self, X):
@@ -378,7 +376,7 @@ class Loader(BasicDataset):
                 print("done split matrix")
             else:
                 self.Graph = self._convert_sp_mat_to_sp_tensor(norm_adj)
-                self.Graph = self.Graph.coalesce().to(world.device)
+                self.Graph = self.Graph.coalesce().to(self.device)
                 print("don't split the matrix")
         return self.Graph
 

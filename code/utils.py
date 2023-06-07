@@ -30,12 +30,14 @@ except:
 
 
 class BPRLoss:
-    def __init__(self,
-                 recmodel : PairWiseModel,
-                 config : dict):
+    def __init__(
+            self,
+            recmodel: PairWiseModel,
+            config: world.Config
+    ):
         self.model = recmodel
-        self.weight_decay = config['decay']
-        self.lr = config['lr']
+        self.weight_decay = config.decay
+        self.lr = config.lr
         self.opt = optim.Adam(recmodel.parameters(), lr=self.lr)
 
     def stageOne(self, users, pos, neg):
@@ -98,12 +100,14 @@ def UniformSample_original_python(dataset):
 # ===================end samplers==========================
 # =====================utils====================================
 
+
 def set_seed(seed):
     np.random.seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
     torch.manual_seed(seed)
+
 
 def getFileName(config):
     if config.model_name == 'mf':
@@ -114,17 +118,15 @@ def getFileName(config):
         raise NotImplementedError(f'getFileName does not have a path for the {config.model_name} model.')
     return os.path.join(config.file_path, file)
 
-def minibatch(*tensors, **kwargs):
 
-    batch_size = kwargs.get('batch_size', world.config['bpr_batch_size'])
+def train_minibatch(users, posItems, negItems, batch_size):
+    for i in range(0, len(users), batch_size):
+        yield tuple(x[i:i + batch_size] for x in (users, posItems, negItems))
 
-    if len(tensors) == 1:
-        tensor = tensors[0]
-        for i in range(0, len(tensor), batch_size):
-            yield tensor[i:i + batch_size]
-    else:
-        for i in range(0, len(tensors[0]), batch_size):
-            yield tuple(x[i:i + batch_size] for x in tensors)
+
+def test_minibatch(users, batch_size):
+    for i in range(0, len(users), batch_size):
+        yield users[i:i + batch_size]
 
 
 def shuffle(*arrays, **kwargs):

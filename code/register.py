@@ -5,15 +5,14 @@ import utils
 from pprint import pprint
 
 
-config = Config()
-
-def load_dataset(dataset_str):
-    if dataset_str in ['gowalla', 'yelp2018', 'amazon-book']:
+def load_dataset(config):
+    if config.dataset in ['gowalla', 'yelp2018', 'amazon-book']:
         return dataloader.Loader(config)
-    elif dataset_str == 'lastfm':
+    elif config.dataset == 'lastfm':
         return dataloader.LastFM()
     else:
-        raise ValueError(f'Dataset {dataset_str} not supported!')
+        raise ValueError(f'Dataset {config.dataset} not supported!')
+
 
 def print_config_info(config):
     print('===========config================')

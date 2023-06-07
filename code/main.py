@@ -1,4 +1,11 @@
-import utils
+import os
+try:
+    os.chdir('code')
+except FileNotFoundError:
+    pass
+
+
+from utils import set_seed, BPRLoss, getFileName
 from world import Config, cprint
 import torch
 from tensorboardX import SummaryWriter
@@ -15,10 +22,10 @@ def run_training():
     # Print config information
     print_config_info(config)
     # Set the seed
-    utils.set_seed(config.seed)
+    set_seed(config.seed)
     print(">>SEED:", config.seed)
     # Load the data
-    dataset = load_dataset(config.dataset)
+    dataset = load_dataset(config)
     # Create a model string to model map
     models = {
         'mf': PureMF,
@@ -29,10 +36,9 @@ def run_training():
     # Move the model to the device
     Recmodel = Recmodel.to(config.device)
     # Instantiate the BPRLoss
-    bpr = utils.BPRLoss(Recmodel, config)
-    # Load the
+    bpr = BPRLoss(Recmodel, config)
 
-    weight_file = utils.getFileName(config)
+    weight_file = getFileName(config)
     print(f"load and save to {weight_file}")
     if config.load_bool:
         try:
@@ -40,7 +46,8 @@ def run_training():
             cprint(f"loaded model weights from {weight_file}")
         except FileNotFoundError:
             print(f"{weight_file} not exists, start from beginning")
-    Neg_k = 1
+    # Instantiate the procedure manager
+    procedure_manager = Procedure.ProcedureManager(config)
 
     # init tensorboard
     if config.tensorboard:
@@ -54,12 +61,14 @@ def run_training():
     try:
         for epoch in range(config.train_epochs):
             start = time.time()
-            if epoch %10 == 0:
+            if epoch % 10 == 0:
                 cprint("[TEST]")
                 if epoch % 50 == 0:
                     print('t')
-                Procedure.Test(dataset, Recmodel, epoch, w, config.multicore)
-            output_information = Procedure.BPR_train_original(dataset, Recmodel, bpr, epoch, neg_k=Neg_k,w=w)
+                procedure_manager.test(dataset, Recmodel, epoch, w, config.multicore)
+            output_information = procedure_manager.bpr_train_original(
+                dataset, Recmodel, bpr, epoch, w=w, config=config
+            )
             print(f'EPOCH[{epoch+1}/{config.train_epochs}] {output_information}')
             torch.save(Recmodel.state_dict(), weight_file)
     finally:

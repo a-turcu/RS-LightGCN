@@ -109,12 +109,15 @@ class LightGCN(BasicModel):
             nn.init.normal_(self.embedding_item.weight, std=0.1)
             world.cprint('use NORMAL distribution initilizer')
         else:
-            self.embedding_user.weight.data.copy_(torch.from_numpy(self.dataset.user_emb))
-            self.embedding_item.weight.data.copy_(torch.from_numpy(self.config['item_emb']))
-            print('use pretarined data')
+            raise NotImplementedError("""
+                This wasn't implemented in the original code, as the user_emb and item_emb keys were never set.
+            """)
+            # self.embedding_user.weight.data.copy_(torch.from_numpy(self.config.user_emb))
+            # self.embedding_item.weight.data.copy_(torch.from_numpy(self.config['item_emb']))
+            # print('use pretarined data')
         self.f = nn.Sigmoid()
         self.Graph = self.dataset.getSparseGraph()
-        print(f"lgn is already to go(dropout:{self.config['dropout']})")
+        print(f"lgn is already to go(dropout:{self.config.dropout})")
 
         # print("save_txt")
     def __dropout_x(self, x, keep_prob):
@@ -150,7 +153,7 @@ class LightGCN(BasicModel):
         # Add the initial embeding to the list of embeddings
         embs = [all_emb]
         # Dropout
-        if self.config['dropout']:
+        if self.config.dropout:
             if self.training:
                 print("droping")
                 g_droped = self.__dropout(self.keep_prob)
