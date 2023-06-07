@@ -13,9 +13,6 @@ from enum import Enum
 from parse import parse_args
 import multiprocessing
 
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
-args = parse_args()
-
 ROOT_PATH = os.path.dirname(os.path.dirname(__file__))
 CODE_PATH = join(ROOT_PATH, 'code')
 DATA_PATH = join(ROOT_PATH, 'data')
@@ -28,12 +25,36 @@ sys.path.append(join(CODE_PATH, 'sources'))
 if not os.path.exists(FILE_PATH):
     os.makedirs(FILE_PATH, exist_ok=True)
 
+class FakeArgs:
+    def __init__(self):
+        self.a_fold = 100
+        self.bpr_batch = 2048
+        self.comment = 'lgn'
+        self.dataset = 'gowalla'
+        self.decay = 0.0001
+        self.dropout = 0
+        self.epochs = 1000
+        self.keepprob = 0.6
+        self.layer = 3
+        self.load = 0
+        self.lr = 0.001
+        self.model = 'lgn'
+        self.multicore = 0
+        self.path = './checkpoints'
+        self.pretrain = 0
+        self.recdim = 64
+        self.seed = 2020
+        self.tensorboard = 1
+        self.testbatch = 100
+        self.topks = '[20]'
+
 
 class Config:
     def __init__(self):
         all_dataset = ['lastfm', 'gowalla', 'yelp2018', 'amazon-book']
         all_models = ['mf', 'lgn']
-        os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+        # args = parse_args()
+        args = FakeArgs()
         self.file_path = FILE_PATH
         self.board_path = BOARD_PATH
         self.bpr_batch_size = args.bpr_batch

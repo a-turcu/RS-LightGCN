@@ -13,7 +13,7 @@ import sys
 import torch
 import numpy as np
 import pandas as pd
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 from scipy.sparse import csr_matrix
 import scipy.sparse as sp
 import world
