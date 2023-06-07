@@ -153,7 +153,7 @@ def shuffle(*arrays, **kwargs):
 
 class timer:
     """
-    Time context manager for code block
+    Time context manager for lgcn_code block
         with timer():
             do something
         timer.get()

@@ -110,7 +110,7 @@ class LightGCN(BasicModel):
             world.cprint('use NORMAL distribution initilizer')
         else:
             raise NotImplementedError("""
-                This wasn't implemented in the original code, as the user_emb and item_emb keys were never set.
+                This wasn't implemented in the original lgcn_code, as the user_emb and item_emb keys were never set.
             """)
             # self.embedding_user.weight.data.copy_(torch.from_numpy(self.config.user_emb))
             # self.embedding_item.weight.data.copy_(torch.from_numpy(self.config['item_emb']))

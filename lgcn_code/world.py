@@ -24,7 +24,7 @@ class Config:
         args = parse_args()
 
         self.root_path = os.path.dirname(os.path.dirname(__file__))
-        self.code_path = join(self.root_path, 'code')
+        self.code_path = join(self.root_path, 'lgcn_code')
         self.data_path = join(self.root_path, 'data')
         self.board_path = join(self.code_path, 'runs')
         self.file_path = join(self.code_path, 'checkpoints')

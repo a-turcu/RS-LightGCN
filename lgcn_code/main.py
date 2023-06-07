@@ -1,6 +1,6 @@
 import os
 try:
-    os.chdir('code')
+    os.chdir('lgcn_code')
 except FileNotFoundError:
     pass
 
