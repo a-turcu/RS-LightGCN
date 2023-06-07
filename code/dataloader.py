@@ -7,9 +7,7 @@ Xiangnan He et al. LightGCN: Simplifying and Powering Graph Convolution Network 
 Design Dataset here
 Every dataset's index has to start at 0
 """
-import os
 from os.path import join
-import sys
 import torch
 import numpy as np
 import pandas as pd
@@ -223,7 +221,7 @@ class Loader(BasicDataset):
         super().__init__()
         # train or test
         cprint(f'loading [{config.weight_path}]')
-        self.split = config.A_split
+        self.split = config.a_split
         self.folds = config.a_fold
         self.device = config.device
         self.mode_dict = {'train': 0, "test": 1}

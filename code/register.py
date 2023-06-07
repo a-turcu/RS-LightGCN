@@ -1,7 +1,4 @@
-from world import Config
 import dataloader
-import model
-import utils
 from pprint import pprint
 
 
@@ -15,8 +12,13 @@ def load_dataset(config):
 
 
 def print_config_info(config):
+    attribute = [
+        'bpr_batch_size', 'latent_dim_rec', 'lightGCN_n_layers', 'dropout', 'keep_prob', 'a_fold',
+        'test_u_batch_size', 'multicore', 'lr', 'decay', 'pretrain', 'a_split', 'bigdata'
+    ]
+    config_dic = {a: getattr(config, a) for a in attribute}
     print('===========config================')
-    pprint('To print our config')
+    pprint(config_dic)
     print("cores for test:", config.cores)
     print("comment:", config.comment)
     print("tensorboard:", config.tensorboard)

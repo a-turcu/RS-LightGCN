@@ -9,16 +9,15 @@ Xiangnan He et al. LightGCN: Simplifying and Powering Graph Convolution Network 
 import os
 from os.path import join
 import torch
-from enum import Enum
-from parse import parse_args
 import multiprocessing
+import sys
 
 ROOT_PATH = os.path.dirname(os.path.dirname(__file__))
 CODE_PATH = join(ROOT_PATH, 'code')
 DATA_PATH = join(ROOT_PATH, 'data')
 BOARD_PATH = join(CODE_PATH, 'runs')
 FILE_PATH = join(CODE_PATH, 'checkpoints')
-import sys
+
 sys.path.append(join(CODE_PATH, 'sources'))
 
 
@@ -68,7 +67,7 @@ class Config:
         self.lr = args.lr
         self.decay = args.decay
         self.pretrain = args.pretrain
-        self.A_split = False
+        self.a_split = False
         self.bigdata = False
         self.gpu = torch.cuda.is_available()
         self.device = torch.device('cuda' if self.gpu else "cpu")

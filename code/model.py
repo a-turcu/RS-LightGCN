@@ -94,7 +94,7 @@ class LightGCN(BasicModel):
         self.latent_dim = self.config.latent_dim_rec
         self.n_layers = self.config.lightGCN_n_layers
         self.keep_prob = self.config.keep_prob
-        self.A_split = self.config.A_split
+        self.a_split = self.config.a_split
         self.embedding_user = torch.nn.Embedding(
             num_embeddings=self.num_users, embedding_dim=self.latent_dim)
         self.embedding_item = torch.nn.Embedding(
@@ -131,7 +131,7 @@ class LightGCN(BasicModel):
         return g
 
     def __dropout(self, keep_prob):
-        if self.A_split:
+        if self.a_split:
             graph = []
             for g in self.Graph:
                 graph.append(self.__dropout_x(g, keep_prob))
@@ -162,7 +162,7 @@ class LightGCN(BasicModel):
             g_droped = self.Graph
         # Loop through the layers
         for layer in range(self.n_layers):
-            if self.A_split:
+            if self.a_split:
                 temp_emb = []
                 for f in range(len(g_droped)):
                     temp_emb.append(torch.sparse.mm(g_droped[f], all_emb))
