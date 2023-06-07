@@ -220,7 +220,7 @@ class Loader(BasicDataset):
     def __init__(self, config, data_path='../data/gowalla', minimal_bool=False):
         super().__init__()
         # train or test
-        cprint(f'loading [{config.weight_path}]')
+        cprint(f'loading [{data_path}]')
         self.split = config.a_split
         self.folds = config.a_fold
         self.device = config.device
