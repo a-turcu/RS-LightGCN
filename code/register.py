@@ -1,26 +1,27 @@
-import world
+from world import Config
 import dataloader
 import model
 import utils
 from pprint import pprint
 
-if world.dataset in ['gowalla', 'yelp2018', 'amazon-book']:
-    dataset = dataloader.Loader(path="../data/"+world.dataset)
-elif world.dataset == 'lastfm':
-    dataset = dataloader.LastFM()
 
-print('===========config================')
-pprint(world.config)
-print("cores for test:", world.CORES)
-print("comment:", world.comment)
-print("tensorboard:", world.tensorboard)
-print("LOAD:", world.LOAD)
-print("Weight path:", world.PATH)
-print("Test Topks:", world.topks)
-print("using bpr loss")
-print('===========end===================')
+def load_dataset(config):
+    if config.dataset in ['gowalla', 'yelp2018', 'amazon-book']:
+        return dataloader.Loader(config)
+    elif config.dataset == 'lastfm':
+        return dataloader.LastFM()
+    else:
+        raise ValueError(f'Dataset {config.dataset} not supported!')
 
-MODELS = {
-    'mf': model.PureMF,
-    'lgn': model.LightGCN
-}
+
+def print_config_info(config):
+    print('===========config================')
+    pprint('To print our config')
+    print("cores for test:", config.cores)
+    print("comment:", config.comment)
+    print("tensorboard:", config.tensorboard)
+    print("LOAD:", config.load_bool)
+    print("Weight path:", config.weight_path)
+    print("Test Topks:", config.topks)
+    print("using bpr loss")
+    print('===========end===================')

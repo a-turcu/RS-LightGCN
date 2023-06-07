@@ -14,3 +14,4 @@ __pycache__/
 *.npy
 *.so
 .rendered
+/code/test.py

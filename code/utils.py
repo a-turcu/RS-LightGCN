@@ -17,25 +17,43 @@ from model import PairWiseModel
 from sklearn.metrics import roc_auc_score
 import random
 import os
-try:
-    from cppimport import imp_from_filepath
-    from os.path import join, dirname
-    path = join(dirname(__file__), "sources/sampling.cpp")
-    sampling = imp_from_filepath(path)
-    sampling.seed(world.seed)
-    sample_ext = True
-except:
-    world.cprint("Cpp extension not loaded")
-    sample_ext = False
+from cppimport import imp_from_filepath
+from os.path import join, dirname
+
+
+class Sampling:
+    def __init__(self, seed):
+        try:
+            path = join(dirname(__file__), "sources/sampling.cpp")
+            self.sampling = imp_from_filepath(path)
+            self.sampling.seed(seed)
+            self.sample_ext = True
+        except:
+            world.cprint("Cpp extension not loaded")
+            self.sampling = None
+            self.sample_ext = False
+
+    def UniformSample_original(self, dataset, neg_ratio=1):
+        dataset: BasicDataset
+        allPos = dataset.allPos
+        start = time()
+        if self.sample_ext:
+            S = self.sampling.sample_negative(dataset.n_users, dataset.m_items,
+                                         dataset.trainDataSize, allPos, neg_ratio)
+        else:
+            S = UniformSample_original_python(dataset)
+        return S
 
 
 class BPRLoss:
-    def __init__(self,
-                 recmodel : PairWiseModel,
-                 config : dict):
+    def __init__(
+            self,
+            recmodel: PairWiseModel,
+            config: world.Config
+    ):
         self.model = recmodel
-        self.weight_decay = config['decay']
-        self.lr = config['lr']
+        self.weight_decay = config.decay
+        self.lr = config.lr
         self.opt = optim.Adam(recmodel.parameters(), lr=self.lr)
 
     def stageOne(self, users, pos, neg):
@@ -49,17 +67,6 @@ class BPRLoss:
 
         return loss.cpu().item()
 
-
-def UniformSample_original(dataset, neg_ratio = 1):
-    dataset : BasicDataset
-    allPos = dataset.allPos
-    start = time()
-    if sample_ext:
-        S = sampling.sample_negative(dataset.n_users, dataset.m_items,
-                                     dataset.trainDataSize, allPos, neg_ratio)
-    else:
-        S = UniformSample_original_python(dataset)
-    return S
 
 def UniformSample_original_python(dataset):
     """
@@ -95,8 +102,6 @@ def UniformSample_original_python(dataset):
     total = time() - total_start
     return np.array(S)
 
-# ===================end samplers==========================
-# =====================utils====================================
 
 def set_seed(seed):
     np.random.seed(seed)
@@ -105,24 +110,25 @@ def set_seed(seed):
         torch.cuda.manual_seed_all(seed)
     torch.manual_seed(seed)
 
-def getFileName():
-    if world.model_name == 'mf':
-        file = f"mf-{world.dataset}-{world.config['latent_dim_rec']}.pth.tar"
-    elif world.model_name == 'lgn':
-        file = f"lgn-{world.dataset}-{world.config['lightGCN_n_layers']}-{world.config['latent_dim_rec']}.pth.tar"
-    return os.path.join(world.FILE_PATH,file)
 
-def minibatch(*tensors, **kwargs):
-
-    batch_size = kwargs.get('batch_size', world.config['bpr_batch_size'])
-
-    if len(tensors) == 1:
-        tensor = tensors[0]
-        for i in range(0, len(tensor), batch_size):
-            yield tensor[i:i + batch_size]
+def getFileName(config):
+    if config.model_name == 'mf':
+        file = f"mf-{config.dataset}-{config.latent_dim_rec}.pth.tar"
+    elif config.model_name == 'lgn':
+        file = f"lgn-{config.dataset}-{config.lightGCN_n_layers}-{config.latent_dim_rec}.pth.tar"
     else:
-        for i in range(0, len(tensors[0]), batch_size):
-            yield tuple(x[i:i + batch_size] for x in tensors)
+        raise NotImplementedError(f'getFileName does not have a path for the {config.model_name} model.')
+    return os.path.join(config.file_path, file)
+
+
+def train_minibatch(users, posItems, negItems, batch_size):
+    for i in range(0, len(users), batch_size):
+        yield tuple(x[i:i + batch_size] for x in (users, posItems, negItems))
+
+
+def test_minibatch(users, batch_size):
+    for i in range(0, len(users), batch_size):
+        yield users[i:i + batch_size]
 
 
 def shuffle(*arrays, **kwargs):
@@ -149,7 +155,7 @@ def shuffle(*arrays, **kwargs):
 
 class timer:
     """
-    Time context manager for code block
+    Time context manager for lgcn_code block
         with timer():
             do something
         timer.get()
