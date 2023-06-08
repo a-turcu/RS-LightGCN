@@ -25,21 +25,52 @@ class Sampling:
             self.sampling = imp_from_filepath(path)
             self.sampling.seed(seed)
             self.sample_ext = True
-        except:
+        except Exception as e:
+            print(f'Exceptions "{e}" occured.')
             world.cprint("Cpp extension not loaded")
             self.sampling = None
             self.sample_ext = False
 
-    def UniformSample_original(self, dataset, neg_ratio=1):
-        dataset: BasicDataset
-        allPos = dataset.allPos
+    def UniformSample_original(self, dataset: BasicDataset, neg_ratio=1):
+        """
+        This method samples a user with a positive and a negative item (user, pos_item, neg_item).
+        """
+        allPos = dataset.all_pos
         start = time()
         if self.sample_ext:
+            # Here we use a C++ library to do the sampling (0.1 seconds)
             S = self.sampling.sample_negative(dataset.n_users, dataset.m_items,
-                                         dataset.trainDataSize, allPos, neg_ratio)
+                                              dataset.train_data_size, allPos, neg_ratio)
         else:
-            S = uniform_sample_original_python(dataset)
+            # Here we use a python to do the sampling (9.7 seconds)
+            S = self.uniform_sample_original_python(dataset)
         return S
+
+    @staticmethod
+    def uniform_sample_original_python(dataset: BasicDataset):
+        """
+        the original impliment of BPR Sampling in LightGCN
+        :return:
+            np.array
+        """
+        user_num = dataset.train_data_size
+        users = np.random.randint(0, dataset.n_users, user_num)
+        allPos = dataset.all_pos
+        S = []
+        for i, user in enumerate(users):
+            posForUser = allPos[user]
+            if len(posForUser) == 0:
+                continue
+            posindex = np.random.randint(0, len(posForUser))
+            positem = posForUser[posindex]
+            while True:
+                negitem = np.random.randint(0, dataset.m_items)
+                if negitem in posForUser:
+                    continue
+                else:
+                    break
+            S.append([user, positem, negitem])
+        return np.array(S)
 
 
 class BrpLoss:
@@ -65,39 +96,6 @@ class BrpLoss:
         return loss.cpu().item()
 
 
-def uniform_sample_original_python(dataset):
-    """
-    the original impliment of BPR Sampling in LightGCN
-    :return:
-        np.array
-    """
-    total_start = time()
-    dataset : BasicDataset
-    user_num = dataset.trainDataSize
-    users = np.random.randint(0, dataset.n_users, user_num)
-    allPos = dataset.allPos
-    S = []
-    sample_time1 = 0.
-    sample_time2 = 0.
-    for i, user in enumerate(users):
-        start = time()
-        posForUser = allPos[user]
-        if len(posForUser) == 0:
-            continue
-        sample_time2 += time() - start
-        posindex = np.random.randint(0, len(posForUser))
-        positem = posForUser[posindex]
-        while True:
-            negitem = np.random.randint(0, dataset.m_items)
-            if negitem in posForUser:
-                continue
-            else:
-                break
-        S.append([user, positem, negitem])
-        end = time()
-        sample_time1 += end - start
-    total = time() - total_start
-    return np.array(S)
 
 
 def set_seed(seed):
@@ -109,6 +107,7 @@ def set_seed(seed):
 
 
 def get_file_name(config):
+
     if config.model_name == 'mf':
         file = f"mf-{config.dataset}-{config.latent_dim_rec}.pth.tar"
     elif config.model_name == 'lgn':
@@ -128,9 +127,11 @@ def test_minibatch(users, batch_size):
         yield users[i:i + batch_size]
 
 
-def shuffle(*arrays, **kwargs):
-
-    require_indices = kwargs.get('indices', False)
+def shuffle(arrays, require_indices=False):
+    """
+    Shuffles the order of the samples in the arrays list. The arrays need to have the same length. Supports a single
+    array in the arrays list.
+    """
 
     if len(set(len(x) for x in arrays)) != 1:
         raise ValueError('All inputs to shuffle must have '

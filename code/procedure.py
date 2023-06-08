@@ -70,7 +70,7 @@ class ProcedureManager:
     def test(self, dataset, model, epoch, w=None, multicore=0):
         u_batch_size = self.test_u_batch_size
         dataset: utils.BasicDataset
-        testDict: dict = dataset.testDict
+        testDict: dict = dataset.test_dict
         # eval mode with no dropout
         model = model.eval()
         max_K = max(self.topks)
@@ -94,7 +94,7 @@ class ProcedureManager:
             # ratings = []
             total_batch = len(users) // u_batch_size + 1
             for batch_users in utils.test_minibatch(users, batch_size=u_batch_size):
-                allPos = dataset.getUserPosItems(batch_users)
+                allPos = dataset.get_user_pos_items(batch_users)
                 groundTrue = [testDict[u] for u in batch_users]
                 batch_users_gpu = torch.Tensor(batch_users).long()
                 batch_users_gpu = batch_users_gpu.to(self.device)

@@ -33,27 +33,27 @@ class BasicDataset(Dataset):
         raise NotImplementedError
 
     @property
-    def trainDataSize(self):
+    def train_data_size(self):
         raise NotImplementedError
 
     @property
-    def testDict(self):
+    def test_dict(self):
         raise NotImplementedError
 
     @property
-    def allPos(self):
+    def all_pos(self):
         raise NotImplementedError
 
-    def getUserItemFeedback(self, users, items):
+    def get_user_item_feedback(self, users, items):
         raise NotImplementedError
 
-    def getUserPosItems(self, users):
+    def get_user_pos_items(self, users):
         posItems = []
         for user in users:
             posItems.append(self.UserItemNet[user].nonzero()[1])
         return posItems
 
-    def getSparseGraph(self):
+    def get_sparse_graph(self):
         """
         build a graph in torch.sparse.IntTensor.
         Details in NGCF's matrix form
@@ -109,7 +109,7 @@ class LastFM(BasicDataset):
                                       shape=(self.n_users, self.m_items))
 
         # pre-calculate
-        self._allPos = self.getUserPosItems(list(range(self.n_users)))
+        self._allPos = self.get_user_pos_items(list(range(self.n_users)))
         self.allNeg = []
         allItems = set(range(self.m_items))
         for i in range(self.n_users):
@@ -127,18 +127,18 @@ class LastFM(BasicDataset):
         return 4489
 
     @property
-    def trainDataSize(self):
+    def train_data_size(self):
         return len(self.trainUser)
 
     @property
-    def testDict(self):
+    def test_dict(self):
         return self.__testDict
 
     @property
-    def allPos(self):
+    def all_pos(self):
         return self._allPos
 
-    def getSparseGraph(self):
+    def get_sparse_graph(self):
         if self.Graph is None:
             user_dim = torch.LongTensor(self.trainUser)
             item_dim = torch.LongTensor(self.trainItem)
@@ -177,7 +177,7 @@ class LastFM(BasicDataset):
                 test_data[user] = [item]
         return test_data
 
-    def getUserItemFeedback(self, users, items):
+    def get_user_item_feedback(self, users, items):
         """
         users:
             shape [-1]
@@ -200,7 +200,7 @@ class LastFM(BasicDataset):
         # return user_id and the positive items of the user
         return user
 
-    def switch2test(self):
+    def switch_2_test(self):
         """
         change dataset mode to offer test data to dataloader
         """
@@ -244,9 +244,9 @@ class Loader(BasicDataset):
             return
 
         self.Graph = None
-        print(f"{self.trainDataSize} interactions for training")
+        print(f"{self.train_data_size} interactions for training")
         print(f"{self.testDataSize} interactions for testing")
-        print(f"{config.dataset} Sparsity : {(self.trainDataSize + self.testDataSize) / self.n_users / self.m_items}")
+        print(f"{config.dataset} Sparsity : {(self.train_data_size + self.testDataSize) / self.n_users / self.m_items}")
 
         # (users,items), bipartite graph
         self.UserItemNet = csr_matrix((np.ones(len(self.trainUser)), (self.trainUser, self.trainItem)),
@@ -256,7 +256,7 @@ class Loader(BasicDataset):
         self.items_D = np.array(self.UserItemNet.sum(axis=0)).squeeze()
         self.items_D[self.items_D == 0.] = 1.
         # pre-calculate
-        self._allPos = self.getUserPosItems(list(range(self.n_user)))
+        self._allPos = self.get_user_pos_items(list(range(self.n_user)))
         self.__testDict = self.__build_test()
         print(f"{config.dataset} is ready to go")
 
@@ -265,12 +265,12 @@ class Loader(BasicDataset):
         This method reads the train or test set text file and returns a tuple with information about the dataset.
 
         In the text file, each line first contains the user_id followed by the list of items the user interacted with.
-        dataUniqueUsers contains the user_ids in a list.
-        dataUser, dataItem are lists that contain all the user item pairs.
-        dataSize is the length of the dataUser, dataItem lists.
+        data_unique_users contains the user_ids in a list.
+        data_user, data_item are lists that contain all the user item pairs.
+        dataSize is the length of the data_user, data_item lists.
         """
         # Create list to store the unique users, and the user item pairs.
-        dataUniqueUsers, dataItem, dataUser = [], [], []
+        data_unique_users, data_item, data_user = [], [], []
         # Create a count of the user item pairs.
         dataSize = 0
         # Read the file
@@ -284,18 +284,18 @@ class Loader(BasicDataset):
             # Extract the user id
             uid = int(l[0])
             # Store the user id
-            dataUniqueUsers.append(uid)
+            data_unique_users.append(uid)
             # Add extend the user list with the user id for each item
-            dataUser.extend([uid] * len(items))
+            data_user.extend([uid] * len(items))
             # Add the items to the item list
-            dataItem.extend(items)
+            data_item.extend(items)
             # Track the max item id
             self.m_item = max(self.m_item, max(items))
             # Track the max user id
             self.n_user = max(self.n_user, uid)
             # Count the total items
             dataSize += len(items)
-        return np.array(dataUniqueUsers), np.array(dataUser), np.array(dataItem), dataSize
+        return np.array(data_unique_users), np.array(data_user), np.array(data_item), dataSize
 
     @staticmethod
     def load_data_file(data_file):
@@ -312,15 +312,15 @@ class Loader(BasicDataset):
         return self.m_item
 
     @property
-    def trainDataSize(self):
+    def train_data_size(self):
         return self.traindataSize
 
     @property
-    def testDict(self):
+    def test_dict(self):
         return self.__testDict
 
     @property
-    def allPos(self):
+    def all_pos(self):
         return self._allPos
 
     def _split_A_hat(self, A):
@@ -343,7 +343,7 @@ class Loader(BasicDataset):
         data = torch.FloatTensor(coo.data)
         return torch.sparse.FloatTensor(index, data, torch.Size(coo.shape))
 
-    def getSparseGraph(self):
+    def get_sparse_graph(self):
         """
         This method creates a sparse matrix of size
 
@@ -351,10 +351,11 @@ class Loader(BasicDataset):
         print("loading adjacency matrix")
         if self.Graph is None:
             try:
+                raise FileNotFoundError()
                 pre_adj_mat = sp.load_npz(self.path + '/s_pre_adj_mat.npz')
                 print("successfully loaded...")
                 norm_adj = pre_adj_mat
-            except:
+            except FileNotFoundError:
                 print("generating adjacency matrix")
                 s = time()
                 mat_len = self.n_users + self.m_items
@@ -364,21 +365,18 @@ class Loader(BasicDataset):
                 adj_mat[:self.n_users, self.n_users:] = R
                 adj_mat[self.n_users:, :self.n_users] = R.T
                 adj_mat = adj_mat.todok()
-                # adj_mat = adj_mat + sp.eye(adj_mat.shape[0])
 
-                rowsum = np.array(adj_mat.sum(axis=1))
-                d_inv = np.power(rowsum, -0.5).flatten()
+                d_inv = np.power(np.array(adj_mat.sum(axis=1)), -0.5).flatten()
                 d_inv[np.isinf(d_inv)] = 0.
                 d_mat = sp.diags(d_inv)
 
-                norm_adj = d_mat.dot(adj_mat)
-                norm_adj = norm_adj.dot(d_mat)
-                norm_adj = norm_adj.tocsr()
+                # This represents "A tilde" the original paper.
+                norm_adj = (d_mat @ adj_mat @ d_mat).tocsr()
                 end = time()
                 print(f"costing {end - s}s, saved norm_mat...")
                 sp.save_npz(self.path + '/s_pre_adj_mat.npz', norm_adj)
 
-            if self.split == True:
+            if self.split:
                 self.Graph = self._split_A_hat(norm_adj)
                 print("done split matrix")
             else:
@@ -401,7 +399,7 @@ class Loader(BasicDataset):
                 test_data[user] = [item]
         return test_data
 
-    def getUserItemFeedback(self, users, items):
+    def get_user_item_feedback(self, users, items):
         """
         users:
             shape [-1]

@@ -62,6 +62,7 @@ def run_training():
                 dataset, rec_model, loss, epoch, w=w, config=config
             )
             print(f'EPOCH[{epoch+1}/{config.train_epochs}] {output_information}')
+            print(f'EPOCH[{epoch+1} took {int(time.time()-start)} seconds!')
             torch.save(rec_model.state_dict(), weight_file)
     finally:
         if config.tensorboard:
