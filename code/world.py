@@ -11,6 +11,7 @@ from os.path import join
 import torch
 import multiprocessing
 import sys
+from parse import parse_args
 
 ROOT_PATH = os.path.dirname(os.path.dirname(__file__))
 CODE_PATH = join(ROOT_PATH, 'code')
@@ -50,8 +51,8 @@ class FakeArgs:
 
 class Config:
     def __init__(self):
-        # args = parse_args()
-        args = FakeArgs()
+        args = parse_args()
+        # args = FakeArgs()
         self.file_path = FILE_PATH
         self.board_path = BOARD_PATH
         self.bpr_batch_size = args.bpr_batch
