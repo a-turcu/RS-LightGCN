@@ -50,9 +50,9 @@ class ProcedureManager:
         Timer.zero()
         return f"loss{aver_loss:.3f}-{time_info}"
 
-    def test_one_batch(self, X):
-        sorted_items = X[0].numpy()
-        groundTrue = X[1]
+    def test_one_batch(self, data_batch):
+        sorted_items = data_batch[0].numpy()
+        groundTrue = data_batch[1]
         r = utils.get_label(groundTrue, sorted_items)
         pre, recall, ndcg = [], [], []
         for k in self.topks:
@@ -75,9 +75,11 @@ class ProcedureManager:
         if multicore == 1:
             cores = multiprocessing.cpu_count() // 2
             pool = multiprocessing.Pool(cores)
-        results = {'precision': np.zeros(len(self.topks)),
-                   'recall': np.zeros(len(self.topks)),
-                   'ndcg': np.zeros(len(self.topks))}
+        results = {
+            'precision': np.zeros(len(self.topks)),
+            'recall': np.zeros(len(self.topks)),
+            'ndcg': np.zeros(len(self.topks))
+        }
         with torch.no_grad():
             users = list(dataset.test_dict.keys())
             try:
