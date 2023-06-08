@@ -26,12 +26,13 @@ sys.path.append(join(CODE_PATH, 'sources'))
 if not os.path.exists(FILE_PATH):
     os.makedirs(FILE_PATH, exist_ok=True)
 
+
 class FakeArgs:
     def __init__(self):
         self.a_fold = 100
         self.bpr_batch = 2048
         self.comment = 'lgn'
-        self.dataset = 'yelp2018' # 'gowalla'
+        self.dataset = 'yelp2018'  # 'gowalla'
         self.decay = 0.0001
         self.dropout = 0
         self.epochs = 1000 # 1000
@@ -51,30 +52,34 @@ class FakeArgs:
 
 
 class Config:
-    def __init__(self):
-        args = parse_args()
-        # args = FakeArgs()
+    def __init__(
+            self, dataset, model, bpr_batch, recdim, layer, dropout, keepprob, a_fold, testbatch, multicore, lr=0.001,
+            decay=0.0001, pretrain=0, seed=2020, epochs=1000, load=0, path='./checkpoints', topks='[20]', tensorboard=1,
+            comment='lgn'
+    ):
+        import subprocess
+
+        self.bpr_batch_size = bpr_batch
+        self.latent_dim_rec = recdim
+        self.lightGCN_n_layers = layer
+        self.dropout = dropout
+        self.keep_prob = keepprob
+        self.a_fold= a_fold
+        self.test_u_batch_size = testbatch
+        self.multicore = multicore
+        self.lr = lr
+        self.decay = decay
+        self.pretrain = pretrain
+        self.seed = seed
+        self.dataset = dataset
+        self.model_name = model
         self.file_path = FILE_PATH
         self.board_path = BOARD_PATH
-        self.bpr_batch_size = args.bpr_batch
-        self.latent_dim_rec = args.recdim
-        self.lightGCN_n_layers = args.layer
-        self.dropout = args.dropout
-        self.keep_prob = args.keepprob
-        self.a_fold= args.a_fold
-        self.test_u_batch_size = args.testbatch
-        self.multicore = args.multicore
-        self.lr = args.lr
-        self.decay = args.decay
-        self.pretrain = args.pretrain
         self.a_split = False
         self.bigdata = False
         self.gpu = torch.cuda.is_available()
         self.device = torch.device('cuda' if self.gpu else "cpu")
         self.cores = multiprocessing.cpu_count() // 2
-        self.seed = args.seed
-        self.dataset = args.dataset
-        self.model_name = args.model
 
         all_dataset = ['lastfm', 'gowalla', 'yelp2018', 'amazon-book']
         all_models = ['mf', 'lgn']
@@ -83,16 +88,16 @@ class Config:
         if self.model_name not in all_models:
             raise NotImplementedError(f"Haven't supported {self.model_name} yet!, try {all_models}")
 
-        self.train_epochs = args.epochs
-        self.load_bool = args.load
-        self.weight_path = args.path
-        self.topks = eval(args.topks)
-        self.tensorboard = args.tensorboard
-        self.comment = args.comment
-        # let pandas shut up
+        self.train_epochs = epochs
+        self.load_bool = load
+        self.weight_path = path
+        self.topks = eval(topks)
+        self.tensorboard = tensorboard
+        self.comment = comment
+        # Silence pandas
         from warnings import simplefilter
         simplefilter(action="ignore", category=FutureWarning)
 
 
-def cprint(words : str):
+def cprint(words: str):
     print(f"\033[0;30;43m{words}\033[0m")

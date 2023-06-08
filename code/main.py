@@ -1,7 +1,8 @@
 import world
 import utils
 from model import PureMf, LightGCN
-from world import cprint
+from parse import parse_args
+from world import Config, cprint
 import torch
 from tensorboardX import SummaryWriter
 import time
@@ -10,9 +11,7 @@ from os.path import join
 from register import print_config_info, load_dataset
 
 
-def run_training():
-    # Instantiate the config object
-    config = world.Config()
+def run_training(config: Config):
     # Print config information
     print_config_info(config)
     # Set the seed
@@ -67,4 +66,16 @@ def run_training():
 
 
 if __name__ == '__main__':
-    run_training()
+    # Load the arguments
+    args = parse_args()
+    # args = world.FakeArgs()
+
+    # Instantiate the config object
+    config = Config(
+        args.dataset, args.model, args.bpr_batch, args.recdim, args.layer, args.dropout, args.keepprob, args.a_fold,
+        args.testbatch, args.multicore, args.lr, args.decay, args.pretrain, args.seed, args.epochs, args.load,
+        args.path, args.topks, args.tensorboard, args.comment
+    )
+
+    # Run the training function
+    run_training(config)
