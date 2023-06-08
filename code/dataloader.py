@@ -36,10 +36,7 @@ class BasicDataset(Dataset):
         raise NotImplementedError
 
     def get_user_pos_items(self, users):
-        posItems = []
-        for user in users:
-            posItems.append(self.user_item_net[user].nonzero()[1])
-        return posItems
+        return [self.user_item_net[user].nonzero()[1] for user in users]
 
     def get_sparse_graph(self):
         """
@@ -69,11 +66,8 @@ class LastFM(BasicDataset):
         self.n_user = 1892
         self.m_item = 4489
         train_data = pd.read_table(join(data_path, 'data1.txt'), header=None)
-        # print(train_data.head())
         test_data = pd.read_table(join(data_path, 'test1.txt'), header=None)
-        # print(test_data.head())
         trust_net = pd.read_table(join(data_path, 'trustnetwork.txt'), header=None).to_numpy()
-        # print(trust_net[:5])
         trust_net -= 1
         train_data -= 1
         test_data -= 1
@@ -110,14 +104,6 @@ class LastFM(BasicDataset):
             neg = all_items - pos
             self.all_neg.append(np.array(list(neg)))
         self.test_dict = self.__build_test()
-
-    # @property
-    # def test_dict(self):
-    #     return self.__testDict
-    #
-    # @property
-    # def all_pos(self):
-    #     return self._allPos
 
     def get_sparse_graph(self):
         if self.graph is None:
@@ -243,13 +229,13 @@ class Loader(BasicDataset):
         item_id_max = np.max((self.df_train['item_id'].max(), self.df_test['item_id'].max()))
         self.n_user = user_id_max + 1
         self.m_item = item_id_max + 1
+        self.train_data_size = self.df_train.shape[0]
+        self.test_data_size = self.df_test.shape[0]
 
     def print_dataset_info(self, config):
-        train_data_size = self.df_train.shape[0]
-        test_data_size = self.df_test.shape[0]
-        print(f"{train_data_size} interactions for training")
-        print(f"{test_data_size} interactions for testing")
-        sparsity = (train_data_size + test_data_size) / self.n_user / self.m_item
+        print(f"{self.train_data_size} interactions for training")
+        print(f"{self.test_data_size} interactions for testing")
+        sparsity = (self.train_data_size + self.test_data_size) / self.n_user / self.m_item
         print(f"{config.dataset} Sparsity : {sparsity}")
 
     @staticmethod
@@ -293,23 +279,7 @@ class Loader(BasicDataset):
             self.n_user = max(self.n_user, user_id)
         return np.array(data_unique_users), np.array(data_user), np.array(data_item)
 
-    # @property
-    # def n_users(self):
-    #     return self.n_user
-    #
-    # @property
-    # def m_items(self):
-    #     return self.m_item
-    #
-    # @property
-    # def test_dict(self):
-    #     return self.test_dict
-    #
-    # @property
-    # def all_pos(self):
-    #     return self.all_pos
-
-    def _split_A_hat(self, A):
+    def _split_a_hat(self, a_hat):
         A_fold = []
         fold_len = (self.n_user + self.m_item) // self.folds
         for i_fold in range(self.folds):
@@ -318,7 +288,7 @@ class Loader(BasicDataset):
                 end = self.n_user + self.m_item
             else:
                 end = (i_fold + 1) * fold_len
-            A_fold.append(self._convert_sp_mat_to_sp_tensor(A[start:end]).coalesce().to(self.device))
+            A_fold.append(self._convert_sp_mat_to_sp_tensor(a_hat[start:end]).coalesce().to(self.device))
         return A_fold
 
     def _convert_sp_mat_to_sp_tensor(self, X):
@@ -362,7 +332,7 @@ class Loader(BasicDataset):
                 sp.save_npz(self.path + '/s_pre_adj_mat.npz', norm_adj)
 
             if self.split:
-                self.graph = self._split_A_hat(norm_adj)
+                self.graph = self._split_a_hat(norm_adj)
                 print("done split matrix")
             else:
                 self.graph = self._convert_sp_mat_to_sp_tensor(norm_adj)
@@ -392,5 +362,4 @@ class Loader(BasicDataset):
         return:
             feedback [-1]
         """
-        # print(self.UserItemNet[users, items])
         return np.array(self.user_item_net[users, items]).astype('uint8').reshape((-1,))

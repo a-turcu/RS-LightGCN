@@ -11,7 +11,6 @@ from os.path import join
 import torch
 import multiprocessing
 import sys
-from parse import parse_args
 
 ROOT_PATH = os.path.dirname(os.path.dirname(__file__))
 CODE_PATH = join(ROOT_PATH, 'code')
@@ -95,15 +94,3 @@ class Config:
 
 def cprint(words : str):
     print(f"\033[0;30;43m{words}\033[0m")
-
-logo = r"""
-██╗      ██████╗ ███╗   ██╗
-██║     ██╔════╝ ████╗  ██║
-██║     ██║  ███╗██╔██╗ ██║
-██║     ██║   ██║██║╚██╗██║
-███████╗╚██████╔╝██║ ╚████║
-╚══════╝ ╚═════╝ ╚═╝  ╚═══╝
-"""
-# font: ANSI Shadow
-# refer to http://patorjk.com/software/taag/#p=display&f=ANSI%20Shadow&t=Sampling
-# print(logo)

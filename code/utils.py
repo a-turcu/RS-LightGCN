@@ -10,7 +10,6 @@ import torch
 from torch import optim
 import numpy as np
 from dataloader import BasicDataset
-from time import time
 from model import PairWiseModel
 from sklearn.metrics import roc_auc_score
 import os
@@ -48,27 +47,26 @@ class Sampling:
     @staticmethod
     def uniform_sample_original_python(dataset: BasicDataset):
         """
-        the original impliment of BPR Sampling in LightGCN
+        The original implimentation of BPR Sampling in LightGCN
         :return:
             np.array
         """
         user_num = dataset.train_data_size
         users = np.random.randint(0, dataset.n_user, user_num)
-        allPos = dataset.all_pos
-        S = []
+        all_pos = dataset.all_pos
+        sample_list = []
         for i, user in enumerate(users):
-            posForUser = allPos[user]
-            if not posForUser:
+            user_items = all_pos[user]
+            if not user_items:
                 continue
-            posindex = np.random.randint(0, len(posForUser))
-            positem = posForUser[posindex]
+            posindex = np.random.randint(0, len(user_items))
+            positem = user_items[posindex]
             while True:
                 negitem = np.random.randint(0, dataset.m_item)
-                if negitem not in posForUser:
+                if negitem not in user_items:
                     break
-
-            S.append([user, positem, negitem])
-        return np.array(S)
+            sample_list.append([user, positem, negitem])
+        return np.array(sample_list)
 
 
 class BrpLoss:
@@ -92,8 +90,6 @@ class BrpLoss:
         self.opt.step()
 
         return loss.cpu().item()
-
-
 
 
 def set_seed(seed):
@@ -237,6 +233,7 @@ def mrr_at_k(r, k):
     pred_data = pred_data.sum(1)
     return np.sum(pred_data)
 
+
 def ndcg_at_k_r(test_data, r, k):
     """
     Normalized Discounted Cumulative Gain
@@ -258,6 +255,7 @@ def ndcg_at_k_r(test_data, r, k):
     ndcg[np.isnan(ndcg)] = 0.
     return np.sum(ndcg)
 
+
 def get_auc_score(all_item_scores, dataset, test_data):
     """
         design for a single user
@@ -268,6 +266,7 @@ def get_auc_score(all_item_scores, dataset, test_data):
     r = r_all[all_item_scores >= 0]
     test_item_scores = all_item_scores[all_item_scores >= 0]
     return roc_auc_score(r, test_item_scores)
+
 
 def get_label(test_data, pred_data):
     r = []

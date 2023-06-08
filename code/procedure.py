@@ -99,7 +99,7 @@ class ProcedureManager:
                 batch_users_gpu = torch.Tensor(batch_users).long()
                 batch_users_gpu = batch_users_gpu.to(self.device)
 
-                rating = model.getUsersRating(batch_users_gpu)
+                rating = model.get_users_rating(batch_users_gpu)
                 #rating = rating.cpu()
                 exclude_index = []
                 exclude_items = []

@@ -15,15 +15,16 @@ from torch import nn
 
 class BasicModel(nn.Module):
     def __init__(self):
-        super(BasicModel, self).__init__()
+        super().__init__()
 
-    def getUsersRating(self, users):
+    def get_users_rating(self, users):
         raise NotImplementedError
 
 
 class PairWiseModel(BasicModel):
     def __init__(self):
-        super(PairWiseModel, self).__init__()
+        super().__init__()
+
     def bpr_loss(self, users, pos, neg):
         """
         Parameters:
@@ -36,25 +37,25 @@ class PairWiseModel(BasicModel):
         raise NotImplementedError
 
 
-class PureMF(BasicModel):
-    def __init__(self,
-                 config:dict,
-                 dataset:BasicDataset):
-        super(PureMF, self).__init__()
-        self.num_users  = dataset.n_user
-        self.num_items  = dataset.m_item
+class PureMf(BasicModel):
+    def __init__(self, config:dict, dataset:BasicDataset):
+        super().__init__()
+        self.num_users = dataset.n_user
+        self.num_items = dataset.m_item
         self.latent_dim = config['latent_dim_rec']
         self.f = nn.Sigmoid()
         self.__init_weight()
 
     def __init_weight(self):
         self.embedding_user = torch.nn.Embedding(
-            num_embeddings=self.num_users, embedding_dim=self.latent_dim)
+            num_embeddings=self.num_users, embedding_dim=self.latent_dim
+        )
         self.embedding_item = torch.nn.Embedding(
-            num_embeddings=self.num_items, embedding_dim=self.latent_dim)
+            num_embeddings=self.num_items, embedding_dim=self.latent_dim
+        )
         print("using Normal distribution N(0,1) initialization for PureMF")
 
-    def getUsersRating(self, users):
+    def get_users_rating(self, users):
         users = users.long()
         users_emb = self.embedding_user(users)
         items_emb = self.embedding_item.weight
@@ -63,14 +64,15 @@ class PureMF(BasicModel):
 
     def bpr_loss(self, users, pos, neg):
         users_emb = self.embedding_user(users.long())
-        pos_emb   = self.embedding_item(pos.long())
-        neg_emb   = self.embedding_item(neg.long())
-        pos_scores= torch.sum(users_emb*pos_emb, dim=1)
-        neg_scores= torch.sum(users_emb*neg_emb, dim=1)
+        pos_emb = self.embedding_item(pos.long())
+        neg_emb = self.embedding_item(neg.long())
+        pos_scores = torch.sum(users_emb*pos_emb, dim=1)
+        neg_scores = torch.sum(users_emb*neg_emb, dim=1)
         loss = torch.mean(nn.functional.softplus(neg_scores - pos_scores))
-        reg_loss = (1/2)*(users_emb.norm(2).pow(2) +
-                          pos_emb.norm(2).pow(2) +
-                          neg_emb.norm(2).pow(2))/float(len(users))
+        reg_loss = 0.5 * (
+            (users_emb.norm(2).pow(2) + pos_emb.norm(2).pow(2) + neg_emb.norm(2).pow(2)) /
+            float(len(users))
+        )
         return loss, reg_loss
 
     def forward(self, users, items):
@@ -83,14 +85,10 @@ class PureMF(BasicModel):
 
 
 class LightGCN(BasicModel):
-    def __init__(
-            self,
-            config: world.Config,
-            dataset:BasicDataset
-    ):
-        super(LightGCN, self).__init__()
+    def __init__(self, config: world.Config, dataset:BasicDataset):
+        super().__init__()
         self.config = config
-        self.dataset : BasicDataset = dataset
+        self.dataset = dataset
         self.__init_weight()
 
     def __init_weight(self):
@@ -118,7 +116,7 @@ class LightGCN(BasicModel):
             """)
             # self.embedding_user.weight.data.copy_(torch.from_numpy(self.config.user_emb))
             # self.embedding_item.weight.data.copy_(torch.from_numpy(self.config['item_emb']))
-            # print('use pretarined data')
+            # print('use pretrained data')
         self.f = nn.Sigmoid()
         self.Graph = self.dataset.get_sparse_graph()
         print(f"lgn is already to go(dropout:{self.config.dropout})")
@@ -186,7 +184,7 @@ class LightGCN(BasicModel):
         users, items = torch.split(light_out, [self.num_users, self.num_items])
         return users, items
     
-    def getUsersRating(self, users):
+    def get_users_rating(self, users):
         all_users, all_items = self.computer()
         users_emb = all_users[users.long()]
         items_emb = all_items
@@ -222,10 +220,7 @@ class LightGCN(BasicModel):
     def forward(self, users, items):
         # compute embedding
         all_users, all_items = self.computer()
-        # print('forward')
-        #all_users, all_items = self.computer()
         users_emb = all_users[users]
         items_emb = all_items[items]
         inner_pro = torch.mul(users_emb, items_emb)
-        gamma     = torch.sum(inner_pro, dim=1)
-        return gamma
+        return torch.sum(inner_pro, dim=1)

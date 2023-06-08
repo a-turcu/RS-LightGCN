@@ -1,6 +1,6 @@
 import world
 import utils
-from model import PureMF, LightGCN
+from model import PureMf, LightGCN
 from world import cprint
 import torch
 from tensorboardX import SummaryWriter
@@ -21,17 +21,14 @@ def run_training():
     # Load the data
     dataset = load_dataset(config)
     # Create a model string to model map
-    models = {
-        'mf': PureMF,
-        'lgn': LightGCN
-    }
+    models = {'mf': PureMf, 'lgn': LightGCN}
     # Instantiate the recommender system model
     rec_model = models[config.model_name](config, dataset)
     # Move the model to the device
     rec_model = rec_model.to(config.device)
     # Instantiate the BPRLoss
     loss = utils.BrpLoss(rec_model, config)
-
+    # Load weight file
     weight_file = utils.get_file_name(config)
     print(f"load and save to {weight_file}")
     if config.load_bool:
