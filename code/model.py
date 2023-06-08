@@ -41,8 +41,8 @@ class PureMF(BasicModel):
                  config:dict,
                  dataset:BasicDataset):
         super(PureMF, self).__init__()
-        self.num_users  = dataset.n_users
-        self.num_items  = dataset.m_items
+        self.num_users  = dataset.n_user
+        self.num_items  = dataset.m_item
         self.latent_dim = config['latent_dim_rec']
         self.f = nn.Sigmoid()
         self.__init_weight()
@@ -94,8 +94,8 @@ class LightGCN(BasicModel):
         self.__init_weight()
 
     def __init_weight(self):
-        self.num_users = self.dataset.n_users
-        self.num_items  = self.dataset.m_items
+        self.num_users = self.dataset.n_user
+        self.num_items  = self.dataset.m_item
         self.latent_dim = self.config.latent_dim_rec
         self.n_layers = self.config.lightGCN_n_layers
         self.keep_prob = self.config.keep_prob

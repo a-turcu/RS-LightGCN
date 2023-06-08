@@ -28,7 +28,7 @@ class ProcedureManager:
         model.train()
 
         with Timer(name="Sample"):
-            s = self.sampler_helper.UniformSample_original(dataset)
+            s = self.sampler_helper.uniform_sample_original(dataset)
         users = torch.Tensor(s[:, 0]).long()
         pos_items = torch.Tensor(s[:, 1]).long()
         neg_items = torch.Tensor(s[:, 2]).long()

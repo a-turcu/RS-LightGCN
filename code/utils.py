@@ -31,20 +31,19 @@ class Sampling:
             self.sampling = None
             self.sample_ext = False
 
-    def UniformSample_original(self, dataset: BasicDataset, neg_ratio=1):
+    def uniform_sample_original(self, dataset: BasicDataset, neg_ratio=1):
         """
         This method samples a user with a positive and a negative item (user, pos_item, neg_item).
         """
-        allPos = dataset.all_pos
-        start = time()
         if self.sample_ext:
             # Here we use a C++ library to do the sampling (0.1 seconds)
-            S = self.sampling.sample_negative(dataset.n_users, dataset.m_items,
-                                              dataset.train_data_size, allPos, neg_ratio)
+            s = self.sampling.sample_negative(
+                dataset.n_user, dataset.m_item, dataset.train_data_size, dataset.all_pos, neg_ratio
+            )
         else:
             # Here we use a python to do the sampling (9.7 seconds)
-            S = self.uniform_sample_original_python(dataset)
-        return S
+            s = self.uniform_sample_original_python(dataset)
+        return s
 
     @staticmethod
     def uniform_sample_original_python(dataset: BasicDataset):
@@ -54,21 +53,20 @@ class Sampling:
             np.array
         """
         user_num = dataset.train_data_size
-        users = np.random.randint(0, dataset.n_users, user_num)
+        users = np.random.randint(0, dataset.n_user, user_num)
         allPos = dataset.all_pos
         S = []
         for i, user in enumerate(users):
             posForUser = allPos[user]
-            if len(posForUser) == 0:
+            if not posForUser:
                 continue
             posindex = np.random.randint(0, len(posForUser))
             positem = posForUser[posindex]
             while True:
-                negitem = np.random.randint(0, dataset.m_items)
-                if negitem in posForUser:
-                    continue
-                else:
+                negitem = np.random.randint(0, dataset.m_item)
+                if negitem not in posForUser:
                     break
+
             S.append([user, positem, negitem])
         return np.array(S)
 
@@ -265,7 +263,7 @@ def get_auc_score(all_item_scores, dataset, test_data):
         design for a single user
     """
     dataset : BasicDataset
-    r_all = np.zeros((dataset.m_items, ))
+    r_all = np.zeros((dataset.m_item,))
     r_all[test_data] = 1
     r = r_all[all_item_scores >= 0]
     test_item_scores = all_item_scores[all_item_scores >= 0]

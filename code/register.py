@@ -6,7 +6,7 @@ def load_dataset(config):
     if config.dataset in ['gowalla', 'yelp2018', 'amazon-book']:
         return dataloader.Loader(config)
     elif config.dataset == 'lastfm':
-        return dataloader.LastFM()
+        return dataloader.LastFM(config)
     else:
         raise ValueError(f'Dataset {config.dataset} not supported!')
 

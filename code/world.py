@@ -30,10 +30,10 @@ class FakeArgs:
         self.a_fold = 100
         self.bpr_batch = 2048
         self.comment = 'lgn'
-        self.dataset = 'gowalla'
+        self.dataset = 'yelp2018' # 'gowalla'
         self.decay = 0.0001
         self.dropout = 0
-        self.epochs = 1000
+        self.epochs = 50 # 1000
         self.keepprob = 0.6
         self.layer = 3
         self.load = 0
@@ -51,8 +51,8 @@ class FakeArgs:
 
 class Config:
     def __init__(self):
-        args = parse_args()
-        # args = FakeArgs()
+        # args = parse_args()
+        args = FakeArgs()
         self.file_path = FILE_PATH
         self.board_path = BOARD_PATH
         self.bpr_batch_size = args.bpr_batch

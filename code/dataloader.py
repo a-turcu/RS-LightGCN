@@ -22,35 +22,23 @@ from time import time
 class BasicDataset(Dataset):
     def __init__(self):
         print("init dataset")
-        self.UserItemNet = {}
-
-    @property
-    def n_users(self):
-        raise NotImplementedError
-
-    @property
-    def m_items(self):
-        raise NotImplementedError
-
-    @property
-    def train_data_size(self):
-        raise NotImplementedError
-
-    @property
-    def test_dict(self):
-        raise NotImplementedError
-
-    @property
-    def all_pos(self):
-        raise NotImplementedError
+        self.user_item_net = {}
+        self.train_data_size = None
+        self.n_user = None
+        self.m_item = None
+        self.test_dict = None
+        self.all_pos = None
 
     def get_user_item_feedback(self, users, items):
+        raise NotImplementedError
+
+    def create_dataset_tensors(self, user_item_map):
         raise NotImplementedError
 
     def get_user_pos_items(self, users):
         posItems = []
         for user in users:
-            posItems.append(self.UserItemNet[user].nonzero()[1])
+            posItems.append(self.user_item_net[user].nonzero()[1])
         return posItems
 
     def get_sparse_graph(self):
@@ -66,90 +54,84 @@ class BasicDataset(Dataset):
 
 class LastFM(BasicDataset):
     """
-    Dataset type for pytorch \n
-    Incldue graph information
-    LastFM dataset
+    Dataset type for pytorch.
+    Includes graph information.
+    LastFM dataset.
     """
 
-    def __init__(self, path="../data/lastfm"):
+    def __init__(self, config, data_path='../data/lastfm'):
         super().__init__()
         # train or test
         cprint("loading [last fm]")
+        self.device = config.device
         self.mode_dict = {'train': 0, "test": 1}
         self.mode = self.mode_dict['train']
-        # self.n_users = 1892
-        # self.m_items = 4489
-        trainData = pd.read_table(join(path, 'data1.txt'), header=None)
-        # print(trainData.head())
-        testData = pd.read_table(join(path, 'test1.txt'), header=None)
-        # print(testData.head())
-        trustNet = pd.read_table(join(path, 'trustnetwork.txt'), header=None).to_numpy()
-        # print(trustNet[:5])
-        trustNet -= 1
-        trainData -= 1
-        testData -= 1
-        self.trustNet = trustNet
-        self.trainData = trainData
-        self.testData = testData
-        self.trainUser = np.array(trainData[:][0])
-        self.trainUniqueUsers = np.unique(self.trainUser)
-        self.trainItem = np.array(trainData[:][1])
-        # self.trainDataSize = len(self.trainUser)
-        self.testUser = np.array(testData[:][0])
-        self.testUniqueUsers = np.unique(self.testUser)
-        self.testItem = np.array(testData[:][1])
-        self.Graph = None
-        print(f"LastFm Sparsity : {(len(self.trainUser) + len(self.testUser)) / self.n_users / self.m_items}")
+        self.n_user = 1892
+        self.m_item = 4489
+        train_data = pd.read_table(join(data_path, 'data1.txt'), header=None)
+        # print(train_data.head())
+        test_data = pd.read_table(join(data_path, 'test1.txt'), header=None)
+        # print(test_data.head())
+        trust_net = pd.read_table(join(data_path, 'trustnetwork.txt'), header=None).to_numpy()
+        # print(trust_net[:5])
+        trust_net -= 1
+        train_data -= 1
+        test_data -= 1
+        self.trust_net = trust_net
+        self.train_data = train_data
+        self.test_data = test_data
+        self.train_user = np.array(train_data[:][0])
+        self.train_data_size = len(self.train_user)
+        self.train_unique_users = np.unique(self.train_user)
+        self.train_item = np.array(train_data[:][1])
+        self.test_user = np.array(test_data[:][0])
+        self.test_unique_users = np.unique(self.test_user)
+        self.test_item = np.array(test_data[:][1])
+        self.graph = None
+        print(f"LastFm Sparsity : {(len(self.train_user) + len(self.test_user)) / self.n_user / self.m_item}")
 
         # (users,users)
-        self.socialNet = csr_matrix((np.ones(len(trustNet)), (trustNet[:, 0], trustNet[:, 1])),
-                                    shape=(self.n_users, self.n_users))
+        self.social_net = csr_matrix(
+            (np.ones(len(trust_net)), (trust_net[:, 0], trust_net[:, 1])),
+            shape=(self.n_user, self.n_user)
+        )
         # (users,items), bipartite graph
-        self.UserItemNet = csr_matrix((np.ones(len(self.trainUser)), (self.trainUser, self.trainItem)),
-                                      shape=(self.n_users, self.m_items))
+        self.user_item_net = csr_matrix(
+            (np.ones(len(self.train_user)), (self.train_user, self.train_item)),
+            shape=(self.n_user, self.m_item)
+        )
 
         # pre-calculate
-        self._allPos = self.get_user_pos_items(list(range(self.n_users)))
-        self.allNeg = []
-        allItems = set(range(self.m_items))
-        for i in range(self.n_users):
-            pos = set(self._allPos[i])
-            neg = allItems - pos
-            self.allNeg.append(np.array(list(neg)))
-        self.__testDict = self.__build_test()
+        self.all_pos = self.get_user_pos_items(list(range(self.n_user)))
+        self.all_neg = []
+        all_items = set(range(self.m_item))
+        for i in range(self.n_user):
+            pos = set(self.all_pos[i])
+            neg = all_items - pos
+            self.all_neg.append(np.array(list(neg)))
+        self.test_dict = self.__build_test()
 
-    @property
-    def n_users(self):
-        return 1892
-
-    @property
-    def m_items(self):
-        return 4489
-
-    @property
-    def train_data_size(self):
-        return len(self.trainUser)
-
-    @property
-    def test_dict(self):
-        return self.__testDict
-
-    @property
-    def all_pos(self):
-        return self._allPos
+    # @property
+    # def test_dict(self):
+    #     return self.__testDict
+    #
+    # @property
+    # def all_pos(self):
+    #     return self._allPos
 
     def get_sparse_graph(self):
-        if self.Graph is None:
-            user_dim = torch.LongTensor(self.trainUser)
-            item_dim = torch.LongTensor(self.trainItem)
+        if self.graph is None:
+            user_dim = torch.LongTensor(self.train_user)
+            item_dim = torch.LongTensor(self.train_item)
 
-            first_sub = torch.stack([user_dim, item_dim + self.n_users])
-            second_sub = torch.stack([item_dim + self.n_users, user_dim])
+            first_sub = torch.stack([user_dim, item_dim + self.n_user])
+            second_sub = torch.stack([item_dim + self.n_user, user_dim])
             index = torch.cat([first_sub, second_sub], dim=1)
             data = torch.ones(index.size(-1)).int()
-            self.Graph = torch.sparse.IntTensor(index, data,
-                                                torch.Size([self.n_users + self.m_items, self.n_users + self.m_items]))
-            dense = self.Graph.to_dense()
+            self.graph = torch.sparse.IntTensor(
+                index, data, torch.Size([self.n_user + self.m_item, self.n_user + self.m_item])
+            )
+            dense = self.graph.to_dense()
             D = torch.sum(dense, dim=1).float()
             D[D == 0.] = 1.
             D_sqrt = torch.sqrt(D).unsqueeze(dim=0)
@@ -158,10 +140,11 @@ class LastFM(BasicDataset):
             index = dense.nonzero()
             data = dense[dense >= 1e-9]
             assert len(index) == len(data)
-            self.Graph = torch.sparse.FloatTensor(index.t(), data, torch.Size(
-                [self.n_users + self.m_items, self.n_users + self.m_items]))
-            self.Graph = self.Graph.coalesce().to(world.device)
-        return self.Graph
+            self.graph = torch.sparse.FloatTensor(
+                index.t(), data, torch.Size([self.n_user + self.m_item, self.n_user + self.m_item])
+            )
+            self.graph = self.graph.coalesce().to(self.device)
+        return self.graph
 
     def __build_test(self):
         """
@@ -169,8 +152,8 @@ class LastFM(BasicDataset):
             dict: {user: [items]}
         """
         test_data = {}
-        for i, item in enumerate(self.testItem):
-            user = self.testUser[i]
+        for i, item in enumerate(self.test_item):
+            user = self.test_user[i]
             if test_data.get(user):
                 test_data[user].append(item)
             else:
@@ -187,16 +170,10 @@ class LastFM(BasicDataset):
             feedback [-1]
         """
         # print(self.UserItemNet[users, items])
-        return np.array(self.UserItemNet[users, items]).astype('uint8').reshape((-1,))
-
-    def getUserNegItems(self, users):
-        negItems = []
-        for user in users:
-            negItems.append(self.allNeg[user])
-        return negItems
+        return np.array(self.user_item_net[users, items]).astype('uint8').reshape((-1,))
 
     def __getitem__(self, index):
-        user = self.trainUniqueUsers[index]
+        user = self.train_unique_users[index]
         # return user_id and the positive items of the user
         return user
 
@@ -207,14 +184,12 @@ class LastFM(BasicDataset):
         self.mode = self.mode_dict['test']
 
     def __len__(self):
-        return len(self.trainUniqueUsers)
+        return len(self.train_unique_users)
 
 
 class Loader(BasicDataset):
     """
-    Dataset type for pytorch \n
-    Incldue graph information
-    gowalla dataset
+    Dataset type for pytorch. Includes graph information.
     """
 
     def __init__(self, config, data_path='../data/gowalla', minimal_bool=False):
@@ -231,105 +206,116 @@ class Loader(BasicDataset):
         train_file = data_path + '/train.txt'
         test_file = data_path + '/test.txt'
         self.path = data_path
-        self.trainUniqueUsers, self.trainUser, self.trainItem, self.traindataSize = self.load_and_extract_data_file(
-            data_file=train_file
-        )
-        self.testUniqueUsers, self.testUser, self.testItem, self.testDataSize = self.load_and_extract_data_file(
-            data_file=test_file
-        )
-        self.m_item += 1
-        self.n_user += 1
+        self.graph = None
 
+        # Train data loading
+        self.df_train = self.load_data_file(data_file=train_file)
+
+        # Test data loading
+        self.df_test = self.load_data_file(data_file=test_file)
+
+        # Get user item info
+        self.get_df_stats()
+
+        # For some uses, we do not need the full init method.
         if minimal_bool:
             return
 
-        self.Graph = None
-        print(f"{self.train_data_size} interactions for training")
-        print(f"{self.testDataSize} interactions for testing")
-        print(f"{config.dataset} Sparsity : {(self.train_data_size + self.testDataSize) / self.n_users / self.m_items}")
+        # Print log
+        self.print_dataset_info(config)
 
         # (users,items), bipartite graph
-        self.UserItemNet = csr_matrix((np.ones(len(self.trainUser)), (self.trainUser, self.trainItem)),
-                                      shape=(self.n_user, self.m_item))
-        self.users_D = np.array(self.UserItemNet.sum(axis=1)).squeeze()
+        self.user_item_net = csr_matrix(
+            (np.ones(len(self.df_train['user_id'])), (self.df_train['user_id'], self.df_train['item_id'])),
+            shape=(self.n_user, self.m_item)
+        )
+        self.users_D = np.array(self.user_item_net.sum(axis=1)).squeeze()
         self.users_D[self.users_D == 0.] = 1
-        self.items_D = np.array(self.UserItemNet.sum(axis=0)).squeeze()
+        self.items_D = np.array(self.user_item_net.sum(axis=0)).squeeze()
         self.items_D[self.items_D == 0.] = 1.
         # pre-calculate
-        self._allPos = self.get_user_pos_items(list(range(self.n_user)))
-        self.__testDict = self.__build_test()
+        self.all_pos = self.get_user_pos_items(list(range(self.n_user)))
+        self.test_dict = self.__build_test()
         print(f"{config.dataset} is ready to go")
 
-    def load_and_extract_data_file(self, data_file):
-        """
-        This method reads the train or test set text file and returns a tuple with information about the dataset.
+    def get_df_stats(self):
+        user_id_max = np.max((self.df_train['user_id'].max(), self.df_test['user_id'].max()))
+        item_id_max = np.max((self.df_train['item_id'].max(), self.df_test['item_id'].max()))
+        self.n_user = user_id_max + 1
+        self.m_item = item_id_max + 1
 
-        In the text file, each line first contains the user_id followed by the list of items the user interacted with.
-        data_unique_users contains the user_ids in a list.
-        data_user, data_item are lists that contain all the user item pairs.
-        dataSize is the length of the data_user, data_item lists.
-        """
-        # Create list to store the unique users, and the user item pairs.
-        data_unique_users, data_item, data_user = [], [], []
-        # Create a count of the user item pairs.
-        dataSize = 0
-        # Read the file
-        lines = self.load_data_file(data_file)
-        # Loop through the data file lines
-        for l in lines:
-            # Clean line
-            l = l.strip('\n').split(' ')
-            # Extract items for this line's user
-            items = [int(i) for i in l[1:]]
-            # Extract the user id
-            uid = int(l[0])
-            # Store the user id
-            data_unique_users.append(uid)
-            # Add extend the user list with the user id for each item
-            data_user.extend([uid] * len(items))
-            # Add the items to the item list
-            data_item.extend(items)
-            # Track the max item id
-            self.m_item = max(self.m_item, max(items))
-            # Track the max user id
-            self.n_user = max(self.n_user, uid)
-            # Count the total items
-            dataSize += len(items)
-        return np.array(data_unique_users), np.array(data_user), np.array(data_item), dataSize
+    def print_dataset_info(self, config):
+        train_data_size = self.df_train.shape[0]
+        test_data_size = self.df_test.shape[0]
+        print(f"{train_data_size} interactions for training")
+        print(f"{test_data_size} interactions for testing")
+        sparsity = (train_data_size + test_data_size) / self.n_user / self.m_item
+        print(f"{config.dataset} Sparsity : {sparsity}")
 
     @staticmethod
     def load_data_file(data_file):
+        """
+        This method reads the train or test set text file and returns a tuple with information about the dataset.
+
+        In the text file, each line first contains the user_id followed by the list of items the user_id interacted with.
+        data_unique_users contains the user_ids in a list.
+        data_user, data_item are lists that contain all the user_id item pairs.
+        data_size is the length of the data_user, data_item lists.
+        """
         with open(data_file) as f:
             # Loop through the lines
-            return [l for l in f.readlines() if len(l) > 0]
+            lines = [line for line in f.readlines() if len(line) > 0]
+        data_list = []
+        for line in lines:
+            line_split = line.strip('\n').split(' ')
+            user_id = int(line_split[0])
+            for item_id in line_split[1:]:
+                data_list.append({
+                    'user_id': user_id,
+                    'item_id': int(item_id)
+                })
+        return pd.DataFrame(data_list)
 
-    @property
-    def n_users(self):
-        return self.n_user
+    def create_dataset_tensors(self, user_item_map):
+        # Create list to store the unique users, and the user item pairs.
+        data_unique_users, data_item, data_user = [], [], []
+        # Loop through the data file lines
+        for user_id, user_items in user_item_map.items():
+            # Store the user id
+            data_unique_users.append(user_id)
+            # Add extend the user list with the user id for each item
+            data_user.extend([user_id] * len(user_items))
+            # Add the items to the item list
+            data_item.extend(user_items)
+            # Track the max item id
+            self.m_item = max(self.m_item, max(user_items))
+            # Track the max user id
+            self.n_user = max(self.n_user, user_id)
+        return np.array(data_unique_users), np.array(data_user), np.array(data_item)
 
-    @property
-    def m_items(self):
-        return self.m_item
-
-    @property
-    def train_data_size(self):
-        return self.traindataSize
-
-    @property
-    def test_dict(self):
-        return self.__testDict
-
-    @property
-    def all_pos(self):
-        return self._allPos
+    # @property
+    # def n_users(self):
+    #     return self.n_user
+    #
+    # @property
+    # def m_items(self):
+    #     return self.m_item
+    #
+    # @property
+    # def test_dict(self):
+    #     return self.test_dict
+    #
+    # @property
+    # def all_pos(self):
+    #     return self.all_pos
 
     def _split_A_hat(self, A):
         A_fold = []
-        fold_len = (self.n_users + self.m_items) // self.folds
+        fold_len = (self.n_user + self.m_item) // self.folds
         for i_fold in range(self.folds):
             start = i_fold * fold_len
             if i_fold == self.folds - 1:
-                end = self.n_users + self.m_items
+                end = self.n_user + self.m_item
             else:
                 end = (i_fold + 1) * fold_len
             A_fold.append(self._convert_sp_mat_to_sp_tensor(A[start:end]).coalesce().to(self.device))
@@ -347,10 +333,9 @@ class Loader(BasicDataset):
         """
         This method creates a sparse matrix of size (n_user + n_item) x (n_user + n_item).
         This matrix is normalised and symmetric.
-
         """
         print("loading adjacency matrix")
-        if self.Graph is None:
+        if self.graph is None:
             try:
                 pre_adj_mat = sp.load_npz(self.path + '/s_pre_adj_mat.npz')
                 print("successfully loaded...")
@@ -358,12 +343,12 @@ class Loader(BasicDataset):
             except FileNotFoundError:
                 print("generating adjacency matrix")
                 s = time()
-                mat_len = self.n_users + self.m_items
+                mat_len = self.n_user + self.m_item
                 adj_mat = sp.dok_matrix((mat_len, mat_len), dtype=np.float32)
                 adj_mat = adj_mat.tolil()
-                R = self.UserItemNet.tolil()
-                adj_mat[:self.n_users, self.n_users:] = R
-                adj_mat[self.n_users:, :self.n_users] = R.T
+                R = self.user_item_net.tolil()
+                adj_mat[:self.n_user, self.n_user:] = R
+                adj_mat[self.n_user:, :self.n_user] = R.T
                 adj_mat = adj_mat.todok()
 
                 d_inv = np.power(np.array(adj_mat.sum(axis=1)), -0.5).flatten()
@@ -377,13 +362,13 @@ class Loader(BasicDataset):
                 sp.save_npz(self.path + '/s_pre_adj_mat.npz', norm_adj)
 
             if self.split:
-                self.Graph = self._split_A_hat(norm_adj)
+                self.graph = self._split_A_hat(norm_adj)
                 print("done split matrix")
             else:
-                self.Graph = self._convert_sp_mat_to_sp_tensor(norm_adj)
-                self.Graph = self.Graph.coalesce().to(self.device)
+                self.graph = self._convert_sp_mat_to_sp_tensor(norm_adj)
+                self.graph = self.graph.coalesce().to(self.device)
                 print("don't split the matrix")
-        return self.Graph
+        return self.graph
 
     def __build_test(self):
         """
@@ -391,12 +376,11 @@ class Loader(BasicDataset):
             dict: {user: [items]}
         """
         test_data = {}
-        for i, item in enumerate(self.testItem):
-            user = self.testUser[i]
-            if test_data.get(user):
-                test_data[user].append(item)
+        for _, row in self.df_test.iterrows():
+            if row.user_id in test_data:
+                test_data[row.user_id].append(row.item_id)
             else:
-                test_data[user] = [item]
+                test_data[row.user_id] = [row.item_id]
         return test_data
 
     def get_user_item_feedback(self, users, items):
@@ -409,4 +393,4 @@ class Loader(BasicDataset):
             feedback [-1]
         """
         # print(self.UserItemNet[users, items])
-        return np.array(self.UserItemNet[users, items]).astype('uint8').reshape((-1,))
+        return np.array(self.user_item_net[users, items]).astype('uint8').reshape((-1,))
