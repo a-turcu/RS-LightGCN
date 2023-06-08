@@ -66,11 +66,8 @@ class ProcedureManager:
             'ndcg':np.array(ndcg)
         }
 
-
-    def test(self, dataset, model, epoch, w=None, multicore=0):
+    def test(self, dataset: utils.BasicDataset, model, epoch, w=None, multicore=0):
         u_batch_size = self.test_u_batch_size
-        dataset: utils.BasicDataset
-        testDict: dict = dataset.test_dict
         # eval mode with no dropout
         model = model.eval()
         max_K = max(self.topks)
@@ -82,7 +79,7 @@ class ProcedureManager:
                    'recall': np.zeros(len(self.topks)),
                    'ndcg': np.zeros(len(self.topks))}
         with torch.no_grad():
-            users = list(testDict.keys())
+            users = list(dataset.test_dict.keys())
             try:
                 assert u_batch_size <= len(users) / 10
             except AssertionError:
@@ -94,8 +91,8 @@ class ProcedureManager:
             # ratings = []
             total_batch = len(users) // u_batch_size + 1
             for batch_users in utils.test_minibatch(users, batch_size=u_batch_size):
-                allPos = dataset.get_user_pos_items(batch_users)
-                groundTrue = [testDict[u] for u in batch_users]
+                all_pos = dataset.get_user_pos_items(batch_users)
+                ground_true = [dataset.test_dict[u] for u in batch_users]
                 batch_users_gpu = torch.Tensor(batch_users).long()
                 batch_users_gpu = batch_users_gpu.to(self.device)
 
@@ -103,7 +100,7 @@ class ProcedureManager:
                 #rating = rating.cpu()
                 exclude_index = []
                 exclude_items = []
-                for range_i, items in enumerate(allPos):
+                for range_i, items in enumerate(all_pos):
                     exclude_index.extend([range_i] * len(items))
                     exclude_items.extend(items)
                 rating[exclude_index, exclude_items] = -(1<<10)
@@ -112,22 +109,22 @@ class ProcedureManager:
                 # aucs = [
                 #         utils.AUC(rating[i],
                 #                   dataset,
-                #                   test_data) for i, test_data in enumerate(groundTrue)
+                #                   test_data) for i, test_data in enumerate(ground_true)
                 #     ]
                 # auc_record.extend(aucs)
                 del rating
                 users_list.append(batch_users)
                 rating_list.append(rating_K.cpu())
-                groundTrue_list.append(groundTrue)
+                groundTrue_list.append(ground_true)
             assert total_batch == len(users_list)
-            X = zip(rating_list, groundTrue_list)
+            sample_zip = zip(rating_list, groundTrue_list)
             if multicore == 1:
-                pre_results = pool.map(self.test_one_batch, X)
+                pre_results = pool.map(self.test_one_batch, sample_zip)
             else:
                 pre_results = []
-                for x in X:
-                    pre_results.append(self.test_one_batch(x))
-            scale = float(u_batch_size/len(users))
+                for s in sample_zip:
+                    pre_results.append(self.test_one_batch(s))
+            # scale = float(u_batch_size/len(users))
             for result in pre_results:
                 results['recall'] += result['recall']
                 results['precision'] += result['precision']

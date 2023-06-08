@@ -98,15 +98,13 @@ class LightGCN(BasicModel):
         self.n_layers = self.config.lightGCN_n_layers
         self.keep_prob = self.config.keep_prob
         self.a_split = self.config.a_split
-        self.embedding_user = torch.nn.Embedding(
-            num_embeddings=self.num_users, embedding_dim=self.latent_dim)
-        self.embedding_item = torch.nn.Embedding(
-            num_embeddings=self.num_items, embedding_dim=self.latent_dim)
+        self.embedding_user = torch.nn.Embedding(num_embeddings=self.num_users, embedding_dim=self.latent_dim)
+        self.embedding_item = torch.nn.Embedding(num_embeddings=self.num_items, embedding_dim=self.latent_dim)
         if self.config.pretrain == 0:
-            #             nn.init.xavier_uniform_(self.embedding_user.weight, gain=1)
-            #             nn.init.xavier_uniform_(self.embedding_item.weight, gain=1)
-            #             print('use xavier initilizer')
-            # random normal init seems to be a better choice when lightGCN actually don't use any non-linear activation function
+            # Random normal init seems to be a better choice when there is no activation layer
+            # nn.init.xavier_uniform_(self.embedding_user.weight, gain=1)
+            # nn.init.xavier_uniform_(self.embedding_item.weight, gain=1)
+            # print('use xavier initilizer')
             nn.init.normal_(self.embedding_user.weight, std=0.1)
             nn.init.normal_(self.embedding_item.weight, std=0.1)
             world.cprint('use NORMAL distribution initilizer')
@@ -118,7 +116,7 @@ class LightGCN(BasicModel):
             # self.embedding_item.weight.data.copy_(torch.from_numpy(self.config['item_emb']))
             # print('use pretrained data')
         self.f = nn.Sigmoid()
-        self.Graph = self.dataset.get_sparse_graph()
+        self.graph = self.dataset.get_sparse_graph()
         print(f"lgn is already to go(dropout:{self.config.dropout})")
 
         # print("save_txt")
@@ -136,10 +134,10 @@ class LightGCN(BasicModel):
     def __dropout(self, keep_prob):
         if self.a_split:
             graph = []
-            for g in self.Graph:
+            for g in self.graph:
                 graph.append(self.__dropout_x(g, keep_prob))
         else:
-            graph = self.__dropout_x(self.Graph, keep_prob)
+            graph = self.__dropout_x(self.graph, keep_prob)
         return graph
 
     def computer(self):
@@ -160,9 +158,9 @@ class LightGCN(BasicModel):
                 print("droping")
                 g_droped = self.__dropout(self.keep_prob)
             else:
-                g_droped = self.Graph
+                g_droped = self.graph
         else:
-            g_droped = self.Graph
+            g_droped = self.graph
         # Loop through the layers
         for layer in range(self.n_layers):
             if self.a_split:
@@ -177,7 +175,6 @@ class LightGCN(BasicModel):
             embs.append(all_emb)
         # Stack the list of embeddings
         embs = torch.stack(embs, dim=1)
-        #print(embs.size())
         # Mean the embeddings from each layer
         light_out = torch.mean(embs, dim=1)
         # Extract and return the user and item embeddings
@@ -205,7 +202,7 @@ class LightGCN(BasicModel):
         users_emb, pos_emb, neg_emb, user_emb0,  pos_emb0, neg_emb0 = self.get_embedding(
             users.long(), pos.long(), neg.long()
         )
-        reg_loss = (1/2)*(
+        reg_loss = 0.5 * (
             user_emb0.norm(2).pow(2) + pos_emb0.norm(2).pow(2) + neg_emb0.norm(2).pow(2)
         ) / float(len(users))
         pos_scores = torch.mul(users_emb, pos_emb)
