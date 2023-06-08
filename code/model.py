@@ -193,7 +193,7 @@ class LightGCN(BasicModel):
         rating = self.f(torch.matmul(users_emb, items_emb.t()))
         return rating
     
-    def getEmbedding(self, users, pos_items, neg_items):
+    def get_embedding(self, users, pos_items, neg_items):
         all_users, all_items = self.computer()
         users_emb = all_users[users]
         pos_emb = all_items[pos_items]
@@ -204,11 +204,12 @@ class LightGCN(BasicModel):
         return users_emb, pos_emb, neg_emb, users_emb_ego, pos_emb_ego, neg_emb_ego
     
     def bpr_loss(self, users, pos, neg):
-        (users_emb, pos_emb, neg_emb, 
-        userEmb0,  posEmb0, negEmb0) = self.getEmbedding(users.long(), pos.long(), neg.long())
-        reg_loss = (1/2)*(userEmb0.norm(2).pow(2) + 
-                         posEmb0.norm(2).pow(2)  +
-                         negEmb0.norm(2).pow(2))/float(len(users))
+        users_emb, pos_emb, neg_emb, user_emb0,  pos_emb0, neg_emb0 = self.get_embedding(
+            users.long(), pos.long(), neg.long()
+        )
+        reg_loss = (1/2)*(
+            user_emb0.norm(2).pow(2) + pos_emb0.norm(2).pow(2) + neg_emb0.norm(2).pow(2)
+        ) / float(len(users))
         pos_scores = torch.mul(users_emb, pos_emb)
         pos_scores = torch.sum(pos_scores, dim=1)
         neg_scores = torch.mul(users_emb, neg_emb)

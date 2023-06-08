@@ -28,18 +28,18 @@ class ProcedureManager:
         model.train()
 
         with Timer(name="Sample"):
-            S = self.sampler_helper.UniformSample_original(dataset)
-        users = torch.Tensor(S[:, 0]).long()
-        posItems = torch.Tensor(S[:, 1]).long()
-        negItems = torch.Tensor(S[:, 2]).long()
+            s = self.sampler_helper.UniformSample_original(dataset)
+        users = torch.Tensor(s[:, 0]).long()
+        pos_items = torch.Tensor(s[:, 1]).long()
+        neg_items = torch.Tensor(s[:, 2]).long()
 
         users = users.to(config.device)
-        posItems = posItems.to(config.device)
-        negItems = negItems.to(config.device)
-        users, posItems, negItems = utils.shuffle(users, posItems, negItems)
+        pos_items = pos_items.to(config.device)
+        neg_items = neg_items.to(config.device)
+        users, pos_items, neg_items = utils.shuffle((users, pos_items, neg_items))
         total_batch = len(users) // config.bpr_batch_size + 1
         aver_loss = 0.
-        enumerator = enumerate(utils.train_minibatch(users, posItems, negItems, batch_size=self.bpr_batch_size))
+        enumerator = enumerate(utils.train_minibatch(users, pos_items, neg_items, batch_size=self.bpr_batch_size))
         for batch_i, (batch_users, batch_pos, batch_neg) in enumerator:
             cri = loss.stage_one(batch_users, batch_pos, batch_neg)
             aver_loss += cri

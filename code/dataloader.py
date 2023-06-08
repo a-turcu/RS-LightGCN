@@ -345,13 +345,13 @@ class Loader(BasicDataset):
 
     def get_sparse_graph(self):
         """
-        This method creates a sparse matrix of size
+        This method creates a sparse matrix of size (n_user + n_item) x (n_user + n_item).
+        This matrix is normalised and symmetric.
 
         """
         print("loading adjacency matrix")
         if self.Graph is None:
             try:
-                raise FileNotFoundError()
                 pre_adj_mat = sp.load_npz(self.path + '/s_pre_adj_mat.npz')
                 print("successfully loaded...")
                 norm_adj = pre_adj_mat
