@@ -8,7 +8,7 @@ from tensorboardX import SummaryWriter
 import time
 import procedure
 from os.path import join
-from register import print_config_info, load_dataset
+from utils import print_config_info, load_dataset
 
 
 def run_training(config: Config):
