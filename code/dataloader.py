@@ -257,10 +257,11 @@ class Loader(BasicDataset):
             line_split = line.strip('\n').split(' ')
             user_id = int(line_split[0])
             for item_id in line_split[1:]:
-                data_list.append({
-                    'user_id': user_id,
-                    'item_id': int(item_id)
-                })
+                if item_id: # Filters out cases when the user id has no associated items.
+                    data_list.append({
+                        'user_id': user_id,
+                        'item_id': int(item_id)
+                    })
         return pd.DataFrame(data_list)
 
     def create_dataset_tensors(self, user_item_map):
