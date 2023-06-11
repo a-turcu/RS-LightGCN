@@ -9,7 +9,7 @@ Define models here
 """
 import world
 import torch
-from dataloader import BasicDataset
+from dataloader import DataLoader
 from torch import nn
 
 
@@ -38,7 +38,7 @@ class PairWiseModel(BasicModel):
 
 
 class PureMf(BasicModel):
-    def __init__(self, config:dict, dataset:BasicDataset):
+    def __init__(self, config:dict, dataset: DataLoader):
         super().__init__()
         self.num_users = dataset.n_user
         self.num_items = dataset.m_item
@@ -85,7 +85,7 @@ class PureMf(BasicModel):
 
 
 class LightGCN(BasicModel):
-    def __init__(self, config: world.Config, dataset:BasicDataset):
+    def __init__(self, config: world.Config, dataset: DataLoader):
         super().__init__()
         self.config = config
         self.dataset = dataset

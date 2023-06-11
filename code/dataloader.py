@@ -19,184 +19,13 @@ from world import cprint
 from time import time
 
 
-class BasicDataset(Dataset):
-    def __init__(self):
-        print("init dataset")
-        self.user_item_net = {}
-        self.train_data_size = None
-        self.n_user = None
-        self.m_item = None
-        self.test_dict = None
-        self.all_pos = None
-
-    def get_user_item_feedback(self, users, items):
-        raise NotImplementedError
-
-    def create_dataset_tensors(self, user_item_map):
-        raise NotImplementedError
-
-    def get_user_pos_items(self, users):
-        return [self.user_item_net[user].nonzero()[1] for user in users]
-
-    def get_sparse_graph(self):
-        """
-        build a graph in torch.sparse.IntTensor.
-        Details in NGCF's matrix form
-        A =
-            |I,   R|
-            |R^T, I|
-        """
-        raise NotImplementedError
-
-
-class LastFM(BasicDataset):
-    """
-    Dataset type for pytorch.
-    Includes graph information.
-    LastFM dataset.
-    """
-
-    def __init__(self, config, data_path='../data/lastfm'):
-        super().__init__()
-        # train or test
-        cprint("loading [last fm]")
-        self.device = config.device
-        self.mode_dict = {'train': 0, "test": 1}
-        self.mode = self.mode_dict['train']
-        self.n_user = 1892
-        self.m_item = 4489
-        train_data = pd.read_table(join(data_path, 'data1.txt'), header=None)
-        test_data = pd.read_table(join(data_path, 'test1.txt'), header=None)
-        # trust_net = pd.read_table(join(data_path, 'trustnetwork.txt'), header=None).to_numpy()
-        # trust_net -= 1
-        train_data -= 1
-        test_data -= 1
-        # self.trust_net = trust_net
-        train_data, test_data = self.data_preprocessing(train_data, test_data)
-        self.n_user = len(set(train_data.iloc[:, 0]) | set(test_data.iloc[:, 0]))
-        self.m_item = len(set(train_data.iloc[:, 1]) | set(test_data.iloc[:, 1]))
-        self.train_data = train_data
-        self.test_data = test_data
-        self.train_user = np.array(train_data[:][0])
-        self.train_data_size = len(self.train_user)
-        self.train_unique_users = np.unique(self.train_user)
-        self.train_item = np.array(train_data[:][1])
-        self.test_user = np.array(test_data[:][0])
-        self.test_unique_users = np.unique(self.test_user)
-        self.test_item = np.array(test_data[:][1])
-        self.graph = None
-        print(f"LastFm Sparsity : {(len(self.train_user) + len(self.test_user)) / self.n_user / self.m_item}")
-
-        # # (users,users)
-        # self.social_net = csr_matrix(
-        #     (np.ones(len(trust_net)), (trust_net[:, 0], trust_net[:, 1])),
-        #     shape=(self.n_user, self.n_user)
-        # )
-        # (users,items), bipartite graph
-        self.user_item_net = csr_matrix(
-            (np.ones(len(self.train_user)), (self.train_user, self.train_item)),
-            shape=(self.n_user, self.m_item)
-        )
-
-        # pre-calculate
-        self.all_pos = self.get_user_pos_items(list(range(self.n_user)))
-        self.all_neg = []
-        all_items = set(range(self.m_item))
-        for i in range(self.n_user):
-            pos = set(self.all_pos[i])
-            neg = all_items - pos
-            self.all_neg.append(np.array(list(neg)))
-        self.test_dict = self.__build_test()
-
-    @staticmethod
-    def data_preprocessing(train_data, test_data):
-        common_users = list(set(train_data.iloc[:, 0]) & set(test_data.iloc[:, 0]))
-        common_users.sort()
-        new_train_data = train_data[train_data[0].isin(common_users)].reset_index(drop=True)
-        new_test_data = test_data[test_data[0].isin(common_users)].reset_index(drop=True)
-        user_id_map = {old_uid: new_uid for new_uid, old_uid in enumerate(common_users)}
-        new_train_data[0] = new_train_data[0].map(user_id_map)
-        new_test_data[0] = new_test_data[0].map(user_id_map)
-        return new_train_data, new_test_data
-
-    def get_sparse_graph(self):
-        if self.graph is None:
-            user_dim = torch.LongTensor(self.train_user)
-            item_dim = torch.LongTensor(self.train_item)
-
-            first_sub = torch.stack([user_dim, item_dim + self.n_user])
-            second_sub = torch.stack([item_dim + self.n_user, user_dim])
-            index = torch.cat([first_sub, second_sub], dim=1)
-            data = torch.ones(index.size(-1)).int()
-            self.graph = torch.sparse.IntTensor(
-                index, data, torch.Size([self.n_user + self.m_item, self.n_user + self.m_item])
-            )
-            dense = self.graph.to_dense()
-            D = torch.sum(dense, dim=1).float()
-            D[D == 0.] = 1.
-            D_sqrt = torch.sqrt(D).unsqueeze(dim=0)
-            dense = dense / D_sqrt
-            dense = dense / D_sqrt.t()
-            index = dense.nonzero()
-            data = dense[dense >= 1e-9]
-            assert len(index) == len(data)
-            self.graph = torch.sparse.FloatTensor(
-                index.t(), data, torch.Size([self.n_user + self.m_item, self.n_user + self.m_item])
-            )
-            self.graph = self.graph.coalesce().to(self.device)
-        return self.graph
-
-    def __build_test(self):
-        """
-        return:
-            dict: {user: [items]}
-        """
-        test_data = {}
-        for i, item in enumerate(self.test_item):
-            user = self.test_user[i]
-            if test_data.get(user):
-                test_data[user].append(item)
-            else:
-                test_data[user] = [item]
-        return test_data
-
-    def get_user_item_feedback(self, users, items):
-        """
-        users:
-            shape [-1]
-        items:
-            shape [-1]
-        return:
-            feedback [-1]
-        """
-        # print(self.UserItemNet[users, items])
-        return np.array(self.user_item_net[users, items]).astype('uint8').reshape((-1,))
-
-    def __getitem__(self, index):
-        user = self.train_unique_users[index]
-        # return user_id and the positive items of the user
-        return user
-
-    def switch_2_test(self):
-        """
-        change dataset mode to offer test data to dataloader
-        """
-        self.mode = self.mode_dict['test']
-
-    def __len__(self):
-        return len(self.train_unique_users)
-
-
-class Loader(BasicDataset):
-    """
-    Dataset type for pytorch. Includes graph information.
-    """
-
+class DataLoader(Dataset):
     def __init__(self, config, minimal_bool=False):
         super().__init__()
         # train or test
-        data_path = f'../data/{config.dataset}'
-        cprint(f'loading [{data_path}]')
+        self.data_path = f'../data/{config.dataset}'
+        cprint(f'loading [{self.data_path}]')
+        self.dataset = config.dataset
         self.split = config.a_split
         self.folds = config.a_fold
         self.device = config.device
@@ -204,28 +33,24 @@ class Loader(BasicDataset):
         self.mode = self.mode_dict['train']
         self.n_user = 0
         self.m_item = 0
-        train_file = data_path + '/train.txt'
-        test_file = data_path + '/test.txt'
-        self.path = data_path
+        self.path = self.data_path
         self.graph = None
-
+        self.train_data_size = None
+        self.test_data_size = None
         # Train data loading
-        self.df_train = self.load_data_file(data_file=train_file)
-
+        self.df_train = self.load_train_file()
         # Test data loading
-        self.df_test = self.load_data_file(data_file=test_file)
-
+        self.df_test = self.load_test_file()
+        # Preprocess the data
+        self.df_train, self.df_test = self.data_preprocessing(self.df_train, self.df_test)
         # Get user item info
         self.get_df_stats()
-
         # For some uses, we do not need the full init method.
         if minimal_bool:
             return
-
         # Print log
         self.print_dataset_info(config)
-
-        # (users,items), bipartite graph
+        # Bipartite graph
         self.user_item_net = csr_matrix(
             (np.ones(len(self.df_train['user_id'])), (self.df_train['user_id'], self.df_train['item_id'])),
             shape=(self.n_user, self.m_item)
@@ -238,6 +63,63 @@ class Loader(BasicDataset):
         self.all_pos = self.get_user_pos_items(list(range(self.n_user)))
         self.test_dict = self.__build_test()
         print(f"{config.dataset} is ready to go")
+
+    def load_train_file(self):
+        """
+        This method load the training data file as a pandas dataframe. It handles the different file naming between
+        the lastfm dataset and the other datasets.
+        """
+        return self.load_data_file(self.data_path + '/train.txt')
+
+    def load_test_file(self):
+        return self.load_data_file(self.data_path + '/test.txt')
+
+    @staticmethod
+    def load_lastfm_file(file_path):
+        # Load the data and drop the last column
+        df = pd.read_table(join(file_path), header=None).drop(columns=2)
+        # Add columns names
+        df.columns = ['user_id', 'item_id']
+        # Return the dataframe
+        return df
+
+    def data_preprocessing(self, train_data, test_data):
+        train_data, test_data = self.clean_users(train_data, test_data)
+        train_data, test_data = self.clean_items(train_data, test_data)
+        return train_data, test_data
+
+    @staticmethod
+    def clean_users(train_data, test_data):
+        common_users = list(set(train_data['user_id']) & set(test_data['user_id']))
+        common_users.sort()
+        new_train_data = train_data[train_data['user_id'].isin(common_users)].reset_index(drop=True)
+        new_test_data = test_data[test_data['user_id'].isin(common_users)].reset_index(drop=True)
+        user_id_map = {old_uid: new_uid for new_uid, old_uid in enumerate(common_users)}
+        id_change = bool(sum([k != v for k, v in user_id_map.items()]))
+        if id_change:
+            print(f'The user ids were updated such that they start at index 0.')
+            new_train_data['user_id'] = new_train_data['user_id'].map(user_id_map)
+            new_test_data['user_id'] = new_test_data['user_id'].map(user_id_map)
+        else:
+            print(f'No user id update required.')
+        return (
+            new_train_data.sort_values('user_id').reset_index(drop=True),
+            new_test_data.sort_values('user_id').reset_index(drop=True)
+        )
+
+    @staticmethod
+    def clean_items(train_data, test_data):
+        all_items = list(set(train_data['item_id']) | set(test_data['item_id']))
+        all_items.sort()
+        item_id_map = {old_uid: new_uid for new_uid, old_uid in enumerate(all_items)}
+        id_change = bool(sum([k != v for k, v in item_id_map.items()]))
+        if id_change:
+            print(f'Updating the item ids such that they start at index 0.')
+            train_data['item_id'] = train_data['item_id'].map(item_id_map)
+            test_data['item_id'] = test_data['item_id'].map(item_id_map)
+        else:
+            print(f'No item id update required.')
+        return train_data, test_data
 
     def get_df_stats(self):
         user_id_max = np.max((self.df_train['user_id'].max(), self.df_test['user_id'].max()))
@@ -271,7 +153,7 @@ class Loader(BasicDataset):
             line_split = line.strip('\n').split(' ')
             user_id = int(line_split[0])
             for item_id in line_split[1:]:
-                if item_id: # Filters out cases when the user id has no associated items.
+                if item_id:  # Filters out cases when the user id has no associated items.
                     data_list.append({
                         'user_id': user_id,
                         'item_id': int(item_id)
@@ -323,7 +205,7 @@ class Loader(BasicDataset):
         print("loading adjacency matrix")
         if self.graph is None:
             try:
-                pre_adj_mat = sp.load_npz(self.path + '/s_pre_adj_mat.npz')
+                pre_adj_mat = sp.load_npz(self.data_path + '/s_pre_adj_mat.npz')
                 print("successfully loaded...")
                 norm_adj = pre_adj_mat
             except FileNotFoundError:
@@ -345,7 +227,7 @@ class Loader(BasicDataset):
                 norm_adj = (d_mat @ adj_mat @ d_mat).tocsr()
                 end = time()
                 print(f"costing {end - s}s, saved norm_mat...")
-                sp.save_npz(self.path + '/s_pre_adj_mat.npz', norm_adj)
+                sp.save_npz(self.data_path + '/s_pre_adj_mat.npz', norm_adj)
 
             if self.split:
                 self.graph = self._split_a_hat(norm_adj)
@@ -379,3 +261,37 @@ class Loader(BasicDataset):
             feedback [-1]
         """
         return np.array(self.user_item_net[users, items]).astype('uint8').reshape((-1,))
+
+    def get_user_pos_items(self, users):
+        return [self.user_item_net[user].nonzero()[1] for user in users]
+
+
+class LastfmLoader(DataLoader):
+    """
+    Dataset type for pytorch.
+    Includes graph information.
+    LastFM dataset.
+    """
+
+    def load_train_file(self):
+        """
+        This method load the training data file as a pandas dataframe. It handles the different file naming between
+        the lastfm dataset and the other datasets.
+        """
+        return self.load_data_file(self.data_path + '/data1.txt')
+
+    def load_test_file(self):
+        """
+        This method load the training data file as a pandas dataframe. It handles the different file naming between
+        the lastfm dataset and the other datasets.
+        """
+        return self.load_data_file(self.data_path + '/test1.txt')
+
+    @staticmethod
+    def load_data_file(file_path):
+        # Load the data and drop the last column
+        df = pd.read_table(join(file_path), header=None).drop(columns=2)
+        # Add columns names
+        df.columns = ['user_id', 'item_id']
+        # Return the dataframe
+        return df

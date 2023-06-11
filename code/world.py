@@ -32,7 +32,7 @@ class FakeArgs:
         self.a_fold = 100
         self.bpr_batch = 2048
         self.comment = 'lgn'
-        self.dataset = 'gowalla'  # 'yelp2018'  # 'gowalla'
+        self.dataset = 'lastfm'  # 'lastfm'  # '' #'gowalla'  # 'yelp2018'  # 'gowalla'
         self.decay = 0.0001
         self.dropout = 0
         self.epochs = 1000 # 1000
@@ -80,13 +80,12 @@ class Config:
         self.gpu = torch.cuda.is_available()
         self.device = torch.device('cuda' if self.gpu else "cpu")
         self.cores = multiprocessing.cpu_count() // 2
-
-        all_dataset = ['lastfm', 'gowalla', 'yelp2018', 'amazon-book']
-        all_models = ['mf', 'lgn']
-        if self.dataset not in all_dataset:
-            raise NotImplementedError(f"Haven't supported {self.dataset} yet!, try {all_dataset}")
-        if self.model_name not in all_models:
-            raise NotImplementedError(f"Haven't supported {self.model_name} yet!, try {all_models}")
+        self.all_dataset = ['lastfm', 'gowalla', 'yelp2018', 'amazon-book']
+        self.all_models = ['mf', 'lgn']
+        if self.dataset not in self.all_dataset:
+            raise NotImplementedError(f"Haven't supported {self.dataset} yet!, try {self.all_dataset}")
+        if self.model_name not in self.all_models:
+            raise NotImplementedError(f"Haven't supported {self.model_name} yet!, try {self.all_models}")
 
         self.train_epochs = epochs
         self.load_bool = load

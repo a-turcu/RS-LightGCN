@@ -8,7 +8,9 @@ from tensorboardX import SummaryWriter
 import time
 import procedure
 from os.path import join
-from utils import print_config_info, load_dataset
+from utils import print_config_info
+
+from dataloader import DataLoader, LastfmLoader
 
 
 def run_training(config: Config):
@@ -18,7 +20,10 @@ def run_training(config: Config):
     utils.set_seed(config.seed)
     print(">>SEED:", config.seed)
     # Load the data
-    dataset = load_dataset(config)
+    if config.dataset == 'lastfm':
+        dataset = LastfmLoader(config)
+    else:
+        dataset = DataLoader(config)
     # Create a model string to model map
     models = {'mf': PureMf, 'lgn': LightGCN}
     # Instantiate the recommender system model

@@ -9,7 +9,7 @@ import world
 import torch
 from torch import optim
 import numpy as np
-from dataloader import BasicDataset
+from dataloader import DataLoader
 from model import PairWiseModel
 from sklearn.metrics import roc_auc_score
 import os
@@ -32,7 +32,7 @@ class Sampling:
             self.sampling = None
             self.sample_ext = False
 
-    def uniform_sample_original(self, dataset: BasicDataset, neg_ratio=1):
+    def uniform_sample_original(self, dataset: DataLoader, neg_ratio=1):
         """
         This method samples a user with a positive and a negative item (user, pos_item, neg_item).
         """
@@ -47,7 +47,7 @@ class Sampling:
         return s
 
     @staticmethod
-    def uniform_sample_original_python(dataset: BasicDataset):
+    def uniform_sample_original_python(dataset: DataLoader):
         """
         The original implimentation of BPR Sampling in LightGCN
         :return:
@@ -262,7 +262,6 @@ def get_auc_score(all_item_scores, dataset, test_data):
     """
         design for a single user
     """
-    dataset : BasicDataset
     r_all = np.zeros((dataset.m_item,))
     r_all[test_data] = 1
     r = r_all[all_item_scores >= 0]
@@ -282,16 +281,6 @@ def get_label(test_data, pred_data):
 
 # ====================end Metrics=============================
 # =========================================================
-
-
-
-def load_dataset(config):
-    if config.dataset in ['gowalla', 'yelp2018', 'amazon-book']:
-        return dataloader.Loader(config)
-    elif config.dataset == 'lastfm':
-        return dataloader.LastFM(config)
-    else:
-        raise ValueError(f'Dataset {config.dataset} not supported!')
 
 
 def print_config_info(config):

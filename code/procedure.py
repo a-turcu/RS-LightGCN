@@ -66,7 +66,7 @@ class ProcedureManager:
             'ndcg':np.array(ndcg)
         }
 
-    def test(self, dataset: utils.BasicDataset, model, epoch, w=None, multicore=0):
+    def test(self, dataset, model, epoch, w=None, multicore=0):
         u_batch_size = self.test_u_batch_size
         # eval mode with no dropout
         model = model.eval()
