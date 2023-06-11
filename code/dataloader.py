@@ -67,11 +67,14 @@ class LastFM(BasicDataset):
         self.m_item = 4489
         train_data = pd.read_table(join(data_path, 'data1.txt'), header=None)
         test_data = pd.read_table(join(data_path, 'test1.txt'), header=None)
-        trust_net = pd.read_table(join(data_path, 'trustnetwork.txt'), header=None).to_numpy()
-        trust_net -= 1
+        # trust_net = pd.read_table(join(data_path, 'trustnetwork.txt'), header=None).to_numpy()
+        # trust_net -= 1
         train_data -= 1
         test_data -= 1
-        self.trust_net = trust_net
+        # self.trust_net = trust_net
+        train_data, test_data = self.data_preprocessing(train_data, test_data)
+        self.n_user = len(set(train_data.iloc[:, 0]) | set(test_data.iloc[:, 0]))
+        self.m_item = len(set(train_data.iloc[:, 1]) | set(test_data.iloc[:, 1]))
         self.train_data = train_data
         self.test_data = test_data
         self.train_user = np.array(train_data[:][0])
@@ -84,11 +87,11 @@ class LastFM(BasicDataset):
         self.graph = None
         print(f"LastFm Sparsity : {(len(self.train_user) + len(self.test_user)) / self.n_user / self.m_item}")
 
-        # (users,users)
-        self.social_net = csr_matrix(
-            (np.ones(len(trust_net)), (trust_net[:, 0], trust_net[:, 1])),
-            shape=(self.n_user, self.n_user)
-        )
+        # # (users,users)
+        # self.social_net = csr_matrix(
+        #     (np.ones(len(trust_net)), (trust_net[:, 0], trust_net[:, 1])),
+        #     shape=(self.n_user, self.n_user)
+        # )
         # (users,items), bipartite graph
         self.user_item_net = csr_matrix(
             (np.ones(len(self.train_user)), (self.train_user, self.train_item)),
@@ -104,6 +107,17 @@ class LastFM(BasicDataset):
             neg = all_items - pos
             self.all_neg.append(np.array(list(neg)))
         self.test_dict = self.__build_test()
+
+    @staticmethod
+    def data_preprocessing(train_data, test_data):
+        common_users = list(set(train_data.iloc[:, 0]) & set(test_data.iloc[:, 0]))
+        common_users.sort()
+        new_train_data = train_data[train_data[0].isin(common_users)].reset_index(drop=True)
+        new_test_data = test_data[test_data[0].isin(common_users)].reset_index(drop=True)
+        user_id_map = {old_uid: new_uid for new_uid, old_uid in enumerate(common_users)}
+        new_train_data[0] = new_train_data[0].map(user_id_map)
+        new_test_data[0] = new_test_data[0].map(user_id_map)
+        return new_train_data, new_test_data
 
     def get_sparse_graph(self):
         if self.graph is None:
