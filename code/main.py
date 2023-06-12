@@ -1,8 +1,7 @@
-import world
 import utils
 from model import PureMf, LightGCN
 from parse import parse_args
-from world import Config, cprint
+from world import Config, cprint, FakeArgs
 import torch
 from tensorboardX import SummaryWriter
 import time
@@ -79,7 +78,7 @@ if __name__ == '__main__':
     config = Config(
         args.dataset, args.model, args.bpr_batch, args.recdim, args.layer, args.dropout, args.keepprob, args.a_fold,
         args.testbatch, args.multicore, args.lr, args.decay, args.pretrain, args.seed, args.epochs, args.load,
-        args.path, args.topks, args.tensorboard, args.comment
+        args.path, args.topks, args.tensorboard, args.comment, args.sampling
     )
 
     # Run the training function

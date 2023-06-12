@@ -20,17 +20,26 @@ from pprint import pprint
 
 
 class Sampling:
-    def __init__(self, seed):
+    def __init__(self, seed, sampling):
         try:
             path = join(dirname(__file__), "sources/sampling.cpp")
             self.sampling = imp_from_filepath(path)
             self.sampling.seed(seed)
             self.sample_ext = True
         except Exception as e:
-            print(f'Exceptions "{e}" occured.')
+            print(f'Exceptions "{e}" occurred.')
             world.cprint("Cpp extension not loaded")
             self.sampling = None
             self.sample_ext = False
+
+        if sampling == 'original':
+            self.sample = self.uniform_sample_original
+        elif sampling == 'new_random':
+            self.sample = self.new_random_sample
+        elif sampling == 'hard_neg':
+            self.sample = self.hard_neg_sample
+        else:
+            raise ValueError(f'Sampling method {sampling} is not supported!')
 
     def uniform_sample_original(self, dataset: DataLoader, neg_ratio=1):
         """
@@ -59,7 +68,7 @@ class Sampling:
         sample_list = []
         for i, user in enumerate(users):
             user_items = all_pos[user]
-            if not user_items:
+            if not len(user_items):
                 continue
             posindex = np.random.randint(0, len(user_items))
             positem = user_items[posindex]
@@ -69,6 +78,21 @@ class Sampling:
                     break
             sample_list.append([user, positem, negitem])
         return np.array(sample_list)
+
+    @staticmethod
+    def new_random_sample(dataset):
+        sample_list = []
+        for user_id, item_id in enumerate(zip(dataset.df_train['user_id'], dataset.df_train['item_id'])):
+            while True:
+                neg_item = np.random.randint(0, dataset.m_item)
+                if neg_item not in dataset.all_pos_map[user_id]:
+                    break
+            sample_list.append([user_id, item_id, neg_item])
+        return np.array(sample_list)
+
+    @staticmethod
+    def hard_neg_sample(dataset):
+        raise NotImplementedError()
 
 
 class BrpLoss:

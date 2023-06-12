@@ -32,7 +32,7 @@ class FakeArgs:
         self.a_fold = 100
         self.bpr_batch = 2048
         self.comment = 'lgn'
-        self.dataset = 'lastfm'  # 'lastfm'  # '' #'gowalla'  # 'yelp2018'  # 'gowalla'
+        self.dataset = 'gowalla' # 'lastfm'  # 'lastfm'  # '' #'gowalla'  # 'yelp2018'  # 'gowalla'
         self.decay = 0.0001
         self.dropout = 0
         self.epochs = 1000 # 1000
@@ -49,13 +49,14 @@ class FakeArgs:
         self.tensorboard = 1
         self.testbatch = 100
         self.topks = '[20]'
+        self.sampling = 'new_random'
 
 
 class Config:
     def __init__(
             self, dataset, model, bpr_batch, recdim, layer, dropout, keepprob, a_fold, testbatch, multicore, lr=0.001,
             decay=0.0001, pretrain=0, seed=2020, epochs=1000, load=0, path='./checkpoints', topks='[20]', tensorboard=1,
-            comment='lgn'
+            comment='lgn', sampling='original'
     ):
         import subprocess
 
@@ -73,6 +74,7 @@ class Config:
         self.seed = seed
         self.dataset = dataset
         self.model_name = model
+        self.sampling = sampling
         self.file_path = FILE_PATH
         self.board_path = BOARD_PATH
         self.a_split = False
@@ -86,7 +88,6 @@ class Config:
             raise NotImplementedError(f"Haven't supported {self.dataset} yet!, try {self.all_dataset}")
         if self.model_name not in self.all_models:
             raise NotImplementedError(f"Haven't supported {self.model_name} yet!, try {self.all_models}")
-
         self.train_epochs = epochs
         self.load_bool = load
         self.weight_path = path

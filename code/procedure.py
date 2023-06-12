@@ -17,7 +17,7 @@ import multiprocessing
 
 class ProcedureManager:
     def __init__(self, config):
-        self.sampler_helper = utils.Sampling(config.seed)
+        self.sampler_helper = utils.Sampling(config.seed, config.sampling)
         self.device = config.device
         self.topks = config.topks
         self.tensorboard = config.tensorboard
@@ -28,7 +28,7 @@ class ProcedureManager:
         model.train()
 
         with Timer(name="Sample"):
-            s = self.sampler_helper.uniform_sample_original(dataset)
+            s = self.sampler_helper.sample(dataset)
         users = torch.Tensor(s[:, 0]).long()
         pos_items = torch.Tensor(s[:, 1]).long()
         neg_items = torch.Tensor(s[:, 2]).long()

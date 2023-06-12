@@ -61,6 +61,8 @@ class DataLoader(Dataset):
         self.items_D[self.items_D == 0.] = 1.
         # pre-calculate
         self.all_pos = self.get_user_pos_items(list(range(self.n_user)))
+        self.all_pos_map = {i: pos_list for i, pos_list in enumerate(self.all_pos)}
+        self.all_items = self.df_train['item_id'].unique().tolist()
         self.test_dict = self.__build_test()
         print(f"{config.dataset} is ready to go")
 

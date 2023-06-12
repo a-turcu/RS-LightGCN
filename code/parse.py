@@ -36,6 +36,7 @@ def parse_args():
                         help="@k test list")
     parser.add_argument('--tensorboard', type=int,default=1,
                         help="enable tensorboard")
+    parser.add_argument('--sampling', type=str, default="original", help='supports [original, new_random, hard_neg]')
     parser.add_argument('--comment', type=str,default="lgn")
     parser.add_argument('--load', type=int,default=0)
     parser.add_argument('--epochs', type=int,default=1000)
