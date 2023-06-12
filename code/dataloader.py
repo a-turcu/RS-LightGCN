@@ -37,6 +37,11 @@ class DataLoader(Dataset):
         self.graph = None
         self.train_data_size = None
         self.test_data_size = None
+        self.all_pos = None
+        self.all_pos_map = None
+        self.all_items = None
+        self.all_pos_list_map = None
+        self.test_dict = None
         # Train data loading
         self.df_train = self.load_train_file()
         # Test data loading
@@ -50,20 +55,12 @@ class DataLoader(Dataset):
             return
         # Print log
         self.print_dataset_info(config)
-        # Bipartite graph
-        self.user_item_net = csr_matrix(
-            (np.ones(len(self.df_train['user_id'])), (self.df_train['user_id'], self.df_train['item_id'])),
-            shape=(self.n_user, self.m_item)
-        )
-        self.users_D = np.array(self.user_item_net.sum(axis=1)).squeeze()
-        self.users_D[self.users_D == 0.] = 1
-        self.items_D = np.array(self.user_item_net.sum(axis=0)).squeeze()
-        self.items_D[self.items_D == 0.] = 1.
-        # pre-calculate
-        self.all_pos = self.get_user_pos_items(list(range(self.n_user)))
-        self.all_pos_map = {i: pos_list for i, pos_list in enumerate(self.all_pos)}
-        self.all_items = self.df_train['item_id'].unique().tolist()
-        self.test_dict = self.__build_test()
+        # Define the graph
+        self.graph_definition()
+        # Pre-calculations
+        self.pre_calculation()
+        # Create a dictionary to store the test
+
         print(f"{config.dataset} is ready to go")
 
     def load_train_file(self):
@@ -123,9 +120,37 @@ class DataLoader(Dataset):
             print(f'No item id update required.')
         return train_data, test_data
 
+    def pre_calculation(self):
+        self.all_pos = self.get_user_pos_items(list(range(self.n_user)))
+        self.all_pos_map = {user_id: set(pos_list) for user_id, pos_list in enumerate(self.all_pos)}
+        self.all_items = set(self.df_train['item_id'].unique().tolist())
+        self.all_pos_list_map = self.get_sorted_list_map(self.all_pos_map)
+        self.test_dict = self.__build_test()
+
+    def get_sorted_list_map(self, set_map):
+        sorted_list_map = {}
+        for k, v in set_map.items():
+            item_list = list(v)
+            item_list.sort()
+            sorted_list_map[k] = item_list
+        return sorted_list_map
+
+    def graph_definition(self):
+        # Bipartite graph
+        self.user_item_net = csr_matrix(
+            (np.ones(len(self.df_train['user_id'])), (self.df_train['user_id'], self.df_train['item_id'])),
+            shape=(self.n_user, self.m_item)
+        )
+        self.users_D = np.array(self.user_item_net.sum(axis=1)).squeeze()
+        self.users_D[self.users_D == 0.] = 1
+        self.items_D = np.array(self.user_item_net.sum(axis=0)).squeeze()
+        self.items_D[self.items_D == 0.] = 1.
+
     def get_df_stats(self):
         user_id_max = np.max((self.df_train['user_id'].max(), self.df_test['user_id'].max()))
         item_id_max = np.max((self.df_train['item_id'].max(), self.df_test['item_id'].max()))
+        self.all_user = set(self.df_train['user_id']) | set(self.df_test['user_id'])
+        self.all_item = set(self.df_train['item_id']) | set(self.df_test['item_id'])
         self.n_user = user_id_max + 1
         self.m_item = item_id_max + 1
         self.train_data_size = self.df_train.shape[0]

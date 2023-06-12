@@ -23,11 +23,19 @@ class ProcedureManager:
         self.tensorboard = config.tensorboard
         self.bpr_batch_size = config.bpr_batch_size
         self.test_u_batch_size = config.test_u_batch_size
+        self.top_ranked_items = None
 
     def bpr_train_original(self, dataset, model, loss, epoch, w=None, config=None):
         model.train()
-
         with Timer(name="Sample"):
+            # import time
+            # start = time.time()
+            # self.sampler_helper.new_random_sample(dataset)
+            # print(f'new took {time.time() - start}')
+            # start = time.time()
+            # self.sampler_helper.uniform_sample_original_python(dataset)
+            # print(f'old took {time.time() - start}')
+            self.sampler_helper.epoch = epoch
             s = self.sampler_helper.sample(dataset)
         users = torch.Tensor(s[:, 0]).long()
         pos_items = torch.Tensor(s[:, 1]).long()
@@ -89,6 +97,7 @@ class ProcedureManager:
             users_list = []
             rating_list = []
             groundTrue_list = []
+            top_ranked_list = []
             # auc_record = []
             # ratings = []
             total_batch = len(users) // u_batch_size + 1
@@ -106,7 +115,9 @@ class ProcedureManager:
                     exclude_index.extend([range_i] * len(items))
                     exclude_items.extend(items)
                 rating[exclude_index, exclude_items] = -(1<<10)
-                _, rating_K = torch.topk(rating, k=max_K)
+                rating_K = torch.topk(rating, k=max_K)[1]
+                top_ranked_list.append(torch.topk(rating, k=1000)[1])
+
                 rating = rating.cpu().numpy()
                 # aucs = [
                 #         utils.AUC(rating[i],
@@ -118,6 +129,7 @@ class ProcedureManager:
                 users_list.append(batch_users)
                 rating_list.append(rating_K.cpu())
                 groundTrue_list.append(ground_true)
+            self.sampler_helper.top_ranked_items = torch.concat(top_ranked_list)
             assert total_batch == len(users_list)
             sample_zip = zip(rating_list, groundTrue_list)
             if multicore == 1:

@@ -21,6 +21,8 @@ from pprint import pprint
 
 class Sampling:
     def __init__(self, seed, sampling):
+        self.top_ranked_items = None
+        self.epoch = None
         try:
             path = join(dirname(__file__), "sources/sampling.cpp")
             self.sampling = imp_from_filepath(path)
@@ -82,7 +84,7 @@ class Sampling:
     @staticmethod
     def new_random_sample(dataset):
         sample_list = []
-        for user_id, item_id in enumerate(zip(dataset.df_train['user_id'], dataset.df_train['item_id'])):
+        for user_id, item_id in zip(dataset.df_train['user_id'], dataset.df_train['item_id']):
             while True:
                 neg_item = np.random.randint(0, dataset.m_item)
                 if neg_item not in dataset.all_pos_map[user_id]:
@@ -90,9 +92,18 @@ class Sampling:
             sample_list.append([user_id, item_id, neg_item])
         return np.array(sample_list)
 
-    @staticmethod
-    def hard_neg_sample(dataset):
-        raise NotImplementedError()
+    def hard_neg_sample(self, dataset):
+        if self.epoch < 50:
+            return self.new_random_sample(dataset)
+        sample_list = []
+        for user_id, item_id in zip(dataset.df_train['user_id'], dataset.df_train['item_id']):
+            while True:
+                rand_int = np.random.randint(0, 1000)
+                neg_item = int(self.top_ranked_items[user_id, rand_int])
+                if neg_item not in dataset.all_pos_map[user_id]:
+                    break
+            sample_list.append([user_id, item_id, neg_item])
+        return np.array(sample_list)
 
 
 class BrpLoss:
