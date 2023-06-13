@@ -83,42 +83,70 @@ class DataLoader(Dataset):
         return df
 
     def data_preprocessing(self, train_data, test_data):
-        train_data, test_data = self.clean_users(train_data, test_data)
-        train_data, test_data = self.clean_items(train_data, test_data)
-        return train_data, test_data
+        """
+        This method ensures that the train and test sets have the same user and item ids. It prints out information
+        relating to the changes made.
+        In practice, only the lastfm dataset requires this type of cleaning.
+        """
+        total_train_dropped = 0
+        total_test_dropped = 0
+        user_id_changed = False
+        item_id_changed = False
 
-    @staticmethod
-    def clean_users(train_data, test_data):
-        common_users = list(set(train_data['user_id']) & set(test_data['user_id']))
-        common_users.sort()
-        new_train_data = train_data[train_data['user_id'].isin(common_users)].reset_index(drop=True)
-        new_test_data = test_data[test_data['user_id'].isin(common_users)].reset_index(drop=True)
-        user_id_map = {old_uid: new_uid for new_uid, old_uid in enumerate(common_users)}
-        id_change = bool(sum([k != v for k, v in user_id_map.items()]))
-        if id_change:
-            print(f'The user ids were updated such that they start at index 0.')
-            new_train_data['user_id'] = new_train_data['user_id'].map(user_id_map)
-            new_test_data['user_id'] = new_test_data['user_id'].map(user_id_map)
-        else:
-            print(f'No user id update required.')
-        return (
-            new_train_data.sort_values('user_id').reset_index(drop=True),
-            new_test_data.sort_values('user_id').reset_index(drop=True)
+        while True:
+            train_data, test_data, train_len_diff2, test_len_diff2, user_id_change = self.clean_dataframe(
+                train_data, test_data, 'user_id'
+            )
+            train_data, test_data, train_len_diff1, test_len_diff1, item_id_change = self.clean_dataframe(
+                train_data, test_data, 'item_id'
+            )
+            user_id_changed = user_id_changed or user_id_change
+            item_id_changed = item_id_changed or item_id_change
+            train_len_diff = train_len_diff1 + train_len_diff2
+            test_len_diff = test_len_diff1 + test_len_diff2
+            total_train_dropped += train_len_diff
+            total_test_dropped += test_len_diff
+            if (train_len_diff == 0) and (test_len_diff == 0):
+                break
+        print(
+            f'{total_train_dropped} training samples and {total_test_dropped} test samples were dropped during the data'
+            ' cleaning.'
         )
+        if user_id_changed:
+            print('The user ids were updated.')
+        else:
+            print('The user ids were not updated.')
+        if item_id_changed:
+            print('The item ids were updated.')
+        else:
+            print('The item ids were not updated.')
+        return train_data, test_data
 
     @staticmethod
-    def clean_items(train_data, test_data):
-        all_items = list(set(train_data['item_id']) | set(test_data['item_id']))
-        all_items.sort()
-        item_id_map = {old_uid: new_uid for new_uid, old_uid in enumerate(all_items)}
-        id_change = bool(sum([k != v for k, v in item_id_map.items()]))
+    def clean_dataframe(train_data, test_data, col_to_clean):
+        """
+        This method ensures that the elements in the col_to_clean column present in the test set are present in the
+        training. It then ensures that the id have a sequential ordering that starts at index 0.
+        """
+        common_ids = list(set(train_data[col_to_clean]))
+        common_ids.sort()
+        new_train_data = train_data[train_data[col_to_clean].isin(common_ids)].reset_index(drop=True)
+        new_test_data = test_data[test_data[col_to_clean].isin(common_ids)].reset_index(drop=True)
+        id_map = {old_uid: new_uid for new_uid, old_uid in enumerate(common_ids)}
+        id_change = bool(sum([k != v for k, v in id_map.items()]))
         if id_change:
-            print(f'Updating the item ids such that they start at index 0.')
-            train_data['item_id'] = train_data['item_id'].map(item_id_map)
-            test_data['item_id'] = test_data['item_id'].map(item_id_map)
-        else:
-            print(f'No item id update required.')
-        return train_data, test_data
+            new_train_data[col_to_clean] = new_train_data[col_to_clean].map(id_map)
+            new_test_data[col_to_clean] = new_test_data[col_to_clean].map(id_map)
+        train_len_diff = train_data.shape[0] - new_train_data.shape[0]
+        test_len_diff = test_data.shape[0] - new_test_data.shape[0]
+        columns = new_train_data.columns.tolist()
+        return (
+            new_train_data.sort_values(columns).reset_index(drop=True),
+            new_test_data.sort_values(columns).reset_index(drop=True),
+            train_len_diff,
+            test_len_diff,
+            id_change
+        )
 
     def pre_calculation(self):
         self.all_pos = self.get_user_pos_items(list(range(self.n_user)))
