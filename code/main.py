@@ -58,6 +58,8 @@ def run_training(config: Config):
             if epoch % 10 == 0:
                 cprint("[TEST]")
                 procedure_manager.test(dataset, rec_model, epoch, w, config.multicore)
+                if config.sampling == 'hard_neg':
+                    procedure_manager.update_top_ranked_items(dataset, rec_model, config.multicore)
             output_information = procedure_manager.bpr_train_original(
                 dataset, rec_model, loss, epoch, w=w, config=config
             )

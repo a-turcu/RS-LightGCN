@@ -97,11 +97,8 @@ class Sampling:
             return self.new_random_sample(dataset)
         sample_list = []
         for user_id, item_id in zip(dataset.df_train['user_id'], dataset.df_train['item_id']):
-            while True:
-                rand_int = np.random.randint(0, 1000)
-                neg_item = int(self.top_ranked_items[user_id, rand_int])
-                if neg_item not in dataset.all_pos_map[user_id]:
-                    break
+            rand_int = np.random.randint(0, 1000)
+            neg_item = int(self.top_ranked_items[user_id, rand_int])
             sample_list.append([user_id, item_id, neg_item])
         return np.array(sample_list)
 
