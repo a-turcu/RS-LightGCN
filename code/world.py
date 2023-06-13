@@ -32,7 +32,7 @@ class FakeArgs:
         self.a_fold = 100
         self.bpr_batch = 2048
         self.comment = 'lgn'
-        self.dataset = 'gowalla' # 'lastfm'  # 'lastfm'  # '' #'gowalla'  # 'yelp2018'  # 'gowalla'
+        self.dataset = 'lastfm' # 'lastfm'  # 'lastfm'  # '' #'gowalla'  # 'yelp2018'  # 'gowalla'
         self.decay = 0.0001
         self.dropout = 0
         self.epochs = 1000 # 1000

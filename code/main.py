@@ -72,7 +72,7 @@ def run_training(config: Config):
 if __name__ == '__main__':
     # Load the arguments
     args = parse_args()
-    # args = world.FakeArgs()
+    # args = FakeArgs()
 
     # Instantiate the config object
     config = Config(

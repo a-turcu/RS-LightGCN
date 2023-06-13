@@ -28,13 +28,7 @@ class ProcedureManager:
     def bpr_train_original(self, dataset, model, loss, epoch, w=None, config=None):
         model.train()
         with Timer(name="Sample"):
-            # import time
-            # start = time.time()
-            # self.sampler_helper.new_random_sample(dataset)
-            # print(f'new took {time.time() - start}')
-            # start = time.time()
-            # self.sampler_helper.uniform_sample_original_python(dataset)
-            # print(f'old took {time.time() - start}')
+            # Some sampling
             self.sampler_helper.epoch = epoch
             s = self.sampler_helper.sample(dataset)
         users = torch.Tensor(s[:, 0]).long()
@@ -108,6 +102,7 @@ class ProcedureManager:
                 batch_users_gpu = batch_users_gpu.to(self.device)
 
                 rating = model.get_users_rating(batch_users_gpu)
+                top_ranked_list.append(torch.topk(rating, k=1000)[1])
                 #rating = rating.cpu()
                 exclude_index = []
                 exclude_items = []
@@ -130,6 +125,7 @@ class ProcedureManager:
                 rating_list.append(rating_K.cpu())
                 groundTrue_list.append(ground_true)
             self.sampler_helper.top_ranked_items = torch.concat(top_ranked_list)
+            del top_ranked_list
             assert total_batch == len(users_list)
             sample_zip = zip(rating_list, groundTrue_list)
             if multicore == 1:
