@@ -102,7 +102,6 @@ class ProcedureManager:
                 batch_users_gpu = batch_users_gpu.to(self.device)
 
                 rating = model.get_users_rating(batch_users_gpu)
-                top_ranked_list.append(torch.topk(rating, k=1000)[1])
                 #rating = rating.cpu()
                 exclude_index = []
                 exclude_items = []
