@@ -16,3 +16,5 @@ __pycache__/
 .rendered
 /code/test.py
 /code/.ipynb_checkpoints/
+/data/gowalla/s_pre_adj_mat.npz
+/data/lastfm/s_pre_adj_mat.npz

@@ -40,6 +40,8 @@ class Sampling:
             self.sample = self.new_random_sample
         elif sampling == 'hard_neg':
             self.sample = self.hard_neg_sample
+        elif sampling == 'hard_neg2':
+            self.sample = self.hard_neg_sample2
         else:
             raise ValueError(f'Sampling method {sampling} is not supported!')
 
@@ -102,6 +104,23 @@ class Sampling:
             sample_list.append([user_id, item_id, neg_item])
         return np.array(sample_list)
 
+    def hard_neg_sample2(self, dataset, hard_neg_prob=0.5):
+        if self.epoch < 50:
+            return self.new_random_sample(dataset)
+        sample_list = []
+        for user_id, item_id in zip(dataset.df_train['user_id'], dataset.df_train['item_id']):
+            if np.random.rand() < hard_neg_prob:
+                # Hard neg sampling
+                rand_int = np.random.randint(0, 1000)
+                neg_item = int(self.top_ranked_items[user_id, rand_int])
+            else:
+                # Random sampling
+                while True:
+                    neg_item = np.random.randint(0, dataset.m_item)
+                    if neg_item not in dataset.all_pos_map[user_id]:
+                        break
+            sample_list.append([user_id, item_id, neg_item])
+        return np.array(sample_list)
 
 class BrpLoss:
     def __init__(
