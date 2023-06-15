@@ -42,6 +42,8 @@ class Sampling:
             self.sample = self.hard_neg_sample
         elif sampling == 'hard_neg2':
             self.sample = self.hard_neg_sample2
+        elif sampling == 'mixed':
+            self.sample = self.mixed
         else:
             raise ValueError(f'Sampling method {sampling} is not supported!')
 
@@ -121,6 +123,13 @@ class Sampling:
                         break
             sample_list.append([user_id, item_id, neg_item])
         return np.array(sample_list)
+
+    def mixed(self, dataset, original_prob=0.5):
+        if np.random.rand() < original_prob:
+            return self.uniform_sample_original(dataset)
+        else:
+            return self.new_random_sample(dataset)
+
 
 class BrpLoss:
     def __init__(

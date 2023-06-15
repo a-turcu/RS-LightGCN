@@ -60,7 +60,7 @@ def run_training(config: Config):
                 procedure_manager.test(dataset, rec_model, epoch, w, config.multicore)
                 if config.sampling == 'hard_neg':
                     procedure_manager.update_top_ranked_items(dataset, rec_model, config.multicore)
-                elif config.sampling == 'hard_neg2':
+                elif config.sampling in ('hard_neg2', 'mixed'):
                     procedure_manager.update_top_ranked_items2(dataset, rec_model, config.multicore)
 
             output_information = procedure_manager.bpr_train_original(
@@ -76,8 +76,8 @@ def run_training(config: Config):
 
 if __name__ == '__main__':
     # Load the arguments
-    args = parse_args()
-    # args = FakeArgs()
+    # args = parse_args()
+    args = FakeArgs()
 
     # Instantiate the config object
     config = Config(
