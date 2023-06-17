@@ -18,10 +18,45 @@ import world
 from world import cprint
 from time import time
 
+class User:
+    def __init__(self):
+        self.item_map = {}
+
+    def add_item(self, item_id, item):
+        self.item_map[item_id] = item
+
+class Item:
+    def __init__(self):
+        self.user_map = {}
+
+    def add_user(self, user_id, user):
+        self.user_map[user_id] = user
+
+
+class UserItemManager:
+    def __init__(self):
+        self.item_dic = {}
+        self.user_dic = {}
+
+    def add_train_set(self, df_train):
+
+        df_train_u_gr = df_train.groupby('user_id')['item_id'].count().reset_index()
+        df_train_u_sort = df_train_u_gr.sort_values('item_id')
+
+        for i, row in df_train.iterrows():
+            if row.user_id not in self.user_dic:
+                self.user_dic[row.user_id] = User()
+            if row.item_id not in self.item_dic:
+                self.item_dic[row.item_id] = Item()
+        for i, row in df_train.iterrows():
+            self.user_dic[row.user_id].add_item(item_id=row.item_id, item=self.item_dic[row.item_id])
+            self.item_dic[row.item_id].add_user(user_id=row.user_id, user=self.user_dic[row.user_id])
+
 
 class DataLoader(Dataset):
     def __init__(self, config, minimal_bool=False):
         super().__init__()
+        self.user_item_manager = UserItemManager()
         # train or test
         self.data_path = f'../data/{config.dataset}'
         cprint(f'loading [{self.data_path}]')
@@ -44,6 +79,7 @@ class DataLoader(Dataset):
         self.test_dict = None
         # Train data loading
         self.df_train = self.load_train_file()
+        self.user_item_manager.add_train_set(self.df_train)
         # Test data loading
         self.df_test = self.load_test_file()
         # Preprocess the data
@@ -190,8 +226,7 @@ class DataLoader(Dataset):
         sparsity = (self.train_data_size + self.test_data_size) / self.n_user / self.m_item
         print(f"{config.dataset} Sparsity : {sparsity}")
 
-    @staticmethod
-    def load_data_file(data_file):
+    def load_data_file(self, data_file):
         """
         This method reads the train or test set text file and returns a tuple with information about the dataset.
 
@@ -207,12 +242,12 @@ class DataLoader(Dataset):
         for line in lines:
             line_split = line.strip('\n').split(' ')
             user_id = int(line_split[0])
+            if user_id % 100 == 0:
+                print(user_id)
             for item_id in line_split[1:]:
                 if item_id:  # Filters out cases when the user id has no associated items.
-                    data_list.append({
-                        'user_id': user_id,
-                        'item_id': int(item_id)
-                    })
+                    data_dic = {'user_id': user_id, 'item_id': int(item_id)}
+                    data_list.append(data_dic)
         return pd.DataFrame(data_list)
 
     def create_dataset_tensors(self, user_item_map):
