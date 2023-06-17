@@ -167,7 +167,7 @@ def get_file_name(config):
     if config.model_name == 'mf':
         file = f"mf-{config.dataset}-{config.latent_dim_rec}.pth.tar"
     elif config.model_name == 'lgn':
-        file = f"lgn-{config.dataset}-{config.lightGCN_n_layers}-{config.latent_dim_rec}.pth.tar"
+        file = f"lgn-{config.dataset}-{config.lightGCN_n_layers}-{config.latent_dim_rec}-{config.sampling}.pth.tar"
     else:
         raise NotImplementedError(f'getFileName does not have a path for the {config.model_name} model.')
     return os.path.join(config.file_path, file)
