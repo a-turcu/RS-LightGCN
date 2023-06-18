@@ -49,7 +49,7 @@ class FakeArgs:
         self.tensorboard = 1
         self.testbatch = 100
         self.topks = '[20]'
-        self.sampling = 'mixed'  # 'original'  # 'hard_neg'
+        self.sampling = 'stratified_new_random'  # 'original'  # 'hard_neg'
 
 
 class Config:

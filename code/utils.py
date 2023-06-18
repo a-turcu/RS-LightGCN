@@ -42,6 +42,10 @@ class Sampling:
             self.sample = self.hard_neg_sample
         elif sampling == 'hard_neg2':
             self.sample = self.hard_neg_sample2
+        elif sampling == 'stratified_original':
+            self.sample = self.stratified_sample_original
+        elif sampling == 'stratified_new_random':
+            self.sample = self.stratified_random_sample
         elif sampling == 'mixed':
             self.sample = self.mixed
         else:
@@ -87,6 +91,10 @@ class Sampling:
 
     @staticmethod
     def new_random_sample(dataset):
+        """
+        The new random sampling respects the original distribution of the positive item and simply selects randomly
+        the negative items.
+        """
         sample_list = []
         for user_id, item_id in zip(dataset.df_train['user_id'], dataset.df_train['item_id']):
             while True:
@@ -96,7 +104,50 @@ class Sampling:
             sample_list.append([user_id, item_id, neg_item])
         return np.array(sample_list)
 
+    @staticmethod
+    def stratified_random_sample(dataset):
+        """
+        This is a stratified random strategy, where both item selected should have a similar popularity.
+        """
+        sample_list = []
+        for user_id, item_id in zip(dataset.df_train['user_id'], dataset.df_train['item_id']):
+            strat_gr = dataset.item_id_to_strat_gr_map[item_id]
+            item_list_len = dataset.strat_gr_to_item_list_len[strat_gr]
+            while True:
+                neg_item_index = np.random.randint(0, item_list_len)
+                neg_item = dataset.strat_gr_to_item_list[strat_gr][neg_item_index]
+                if neg_item not in dataset.all_pos_map[user_id]:
+                    break
+            sample_list.append([user_id, item_id, neg_item])
+        return np.array(sample_list)
+
+    @staticmethod
+    def stratified_sample_original(dataset):
+        """
+        The original sampling strategy stratified by item popularity
+        """
+        sample_list = []
+        for user_id in dataset.df_train['user_id'].unique():
+            user_items = dataset.all_pos[user_id]
+            user_items_len = len(user_items)
+            for _ in range(dataset.mean_item_per_user):
+                pos_index = np.random.randint(0, user_items_len)
+                pos_item = user_items[pos_index]
+                strat_gr = dataset.item_id_to_strat_gr_map[pos_item]
+                item_list_len = dataset.strat_gr_to_item_list_len[strat_gr]
+                while True:
+                    neg_item_index = np.random.randint(0, item_list_len)
+                    neg_item = dataset.strat_gr_to_item_list[strat_gr][neg_item_index]
+                    if neg_item not in dataset.all_pos_map[user_id]:
+                        break
+                sample_list.append([user_id, pos_item, neg_item])
+        return np.array(sample_list)
+
+
     def hard_neg_sample(self, dataset):
+        """
+        This is a hard sampling strategy
+        """
         if self.epoch < 50:
             return self.new_random_sample(dataset)
         sample_list = []
@@ -107,6 +158,9 @@ class Sampling:
         return np.array(sample_list)
 
     def hard_neg_sample2(self, dataset, hard_neg_prob=0.5):
+        """
+        This sampling method hard samples only half the time
+        """
         if self.epoch < 50:
             return self.new_random_sample(dataset)
         sample_list = []
@@ -125,6 +179,9 @@ class Sampling:
         return np.array(sample_list)
 
     def mixed(self, dataset, original_prob=0.5):
+        """
+        This sampling method mixes the original sampling and random sampling strategy.
+        """
         if np.random.rand() < original_prob:
             return self.uniform_sample_original(dataset)
         else:

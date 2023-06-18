@@ -42,6 +42,9 @@ class DataLoader(Dataset):
         self.all_items = None
         self.all_pos_list_map = None
         self.test_dict = None
+        self.item_id_to_popularity_map = None
+        self.item_id_to_strat_gr_map = None
+        self.strat_gr_to_item_list = None
         # Train data loading
         self.df_train = self.load_train_file()
         # Test data loading
@@ -154,6 +157,29 @@ class DataLoader(Dataset):
         self.all_items = set(self.df_train['item_id'].unique().tolist())
         self.all_pos_list_map = self.get_sorted_list_map(self.all_pos_map)
         self.test_dict = self.__build_test()
+        train_df_i_gr = self.df_train.groupby('item_id')['user_id'].count().reset_index()
+        quartile1 = train_df_i_gr['user_id'].quantile(0.25)
+        quartile2 = train_df_i_gr['user_id'].quantile(0.5)
+        quartile3 = train_df_i_gr['user_id'].quantile(0.75)
+        train_df_i_gr['stratified_group'] = None
+        cond = train_df_i_gr['user_id'] <= quartile1
+        train_df_i_gr.loc[cond, 'stratified_group'] = 'quartile_1'
+        cond = (train_df_i_gr['user_id'] > quartile1) & (train_df_i_gr['user_id'] <= quartile2)
+        train_df_i_gr.loc[cond, 'stratified_group'] = 'quartile_2'
+        cond = (train_df_i_gr['user_id'] > quartile2) & (train_df_i_gr['user_id'] <= quartile3)
+        train_df_i_gr.loc[cond, 'stratified_group'] = 'quartile_3'
+        cond = (train_df_i_gr['user_id'] > quartile3)
+        train_df_i_gr.loc[cond, 'stratified_group'] = 'quartile_4'
+        self.item_id_to_popularity_map = dict(zip(train_df_i_gr['item_id'], train_df_i_gr['user_id']))
+        self.item_id_to_strat_gr_map = dict(zip(train_df_i_gr['item_id'], train_df_i_gr['stratified_group']))
+        self.strat_gr_to_item_list = {}
+        for k, v in self.item_id_to_strat_gr_map.items():
+            if v in self.strat_gr_to_item_list:
+                self.strat_gr_to_item_list[v].append(k)
+            else:
+                self.strat_gr_to_item_list[v] = [k]
+        self.strat_gr_to_item_list_len = {k: len(v) for k, v in self.strat_gr_to_item_list.items()}
+        self.mean_item_per_user = int(self.df_train.shape[0] / self.df_train.user_id.unique().shape[0])
 
     def get_sorted_list_map(self, set_map):
         sorted_list_map = {}
