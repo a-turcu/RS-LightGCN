@@ -68,7 +68,7 @@ def run_training(config: Config):
                 results = {k: float(v) for k, v in results.items()}
                 results['epoch'] = epoch
                 data_list.append(results)
-                output_csv_results(data_list)
+                output_csv_results(data_list, config)
 
             output_information = procedure_manager.bpr_train_original(
                 dataset, rec_model, loss, epoch, w=w, config=config
@@ -81,7 +81,7 @@ def run_training(config: Config):
             w.close()
 
 
-def output_csv_results(data_list):
+def output_csv_results(data_list, config):
     """
     Creates a csv output of the test results.
     """
