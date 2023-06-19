@@ -24,7 +24,8 @@ def parse_args():
     parser.add_argument(
         '--dataset', type=str, default='gowalla', help="available datasets: [lastfm, gowalla, yelp2018, amazon-book]"
     )
-    parser.add_argument('--path', type=str, default="./checkpoints", help="path to save weights")
+    parser.add_argument('--checkpoint_path', type=str, default="./checkpoints", help="path to save weights")
+    parser.add_argument('--results_path', type=str, default="./results", help="path to save weights")
     parser.add_argument('--topks', nargs='?', default="[20]", help="@k test list")
     parser.add_argument('--tensorboard', type=int, default=1, help="enable tensorboard")
     parser.add_argument('--sampling', type=str, default="original", help='supports [original, new_random, hard_neg]')

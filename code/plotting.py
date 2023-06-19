@@ -1,7 +1,7 @@
 import pandas as pd
 
 from model import LightGCN
-from utils import BrpLoss, get_file_name, test_minibatch
+from utils import BrpLoss, test_minibatch
 from world import FakeArgs, Config
 from dataloader import DataLoader
 import torch
@@ -19,7 +19,7 @@ args = FakeArgs()
 config = Config(
     args.dataset, args.model, args.bpr_batch, args.recdim, args.layer, args.dropout, args.keepprob, args.a_fold,
     args.testbatch, args.multicore, args.lr, args.decay, args.pretrain, args.seed, args.epochs, args.load,
-    args.path, args.topks, args.tensorboard, args.comment, args.sampling
+    args.checkpoint_path, args.results_path, args.topks, args.tensorboard, args.comment, args.sampling
 )
 dataset = DataLoader(config)
 train_df = dataset.load_train_file()
@@ -34,6 +34,8 @@ loss = BrpLoss(rec_model, config)
 # weight_file = get_file_name(config)
 
 
+
+# weight_file = '/home/ryan/PycharmProjects/RS-LightGCN/code/checkpoints/lgn-gowalla-3-64.pth.tar'
 
 weight_file = '/home/ryan/PycharmProjects/RS-LightGCN/code/checkpoints/lgn-gowalla-3-64.pth.tar'
 

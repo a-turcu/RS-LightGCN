@@ -1,3 +1,5 @@
+import pandas as pd
+
 import utils
 from model import PureMf, LightGCN
 from parse import parse_args
@@ -32,7 +34,7 @@ def run_training(config: Config):
     # Instantiate the BPRLoss
     loss = utils.BrpLoss(rec_model, config)
     # Load weight file
-    weight_file = utils.get_file_name(config)
+    weight_file = utils.get_checkpoint_file_name(config)
     print(f"load and save to {weight_file}")
     if config.load_bool:
         try:
@@ -53,15 +55,20 @@ def run_training(config: Config):
         cprint("not enable tensorflowboard")
 
     try:
+        data_list = []
         for epoch in range(config.train_epochs):
             start = time.time()
             if epoch % 10 == 0:
                 cprint("[TEST]")
-                procedure_manager.test(dataset, rec_model, epoch, w, config.multicore)
+                results = procedure_manager.test(dataset, rec_model, epoch, w, config.multicore)
                 if config.sampling == 'hard_neg':
                     procedure_manager.update_top_ranked_items(dataset, rec_model, config.multicore)
                 elif config.sampling in ('hard_neg2', 'mixed'):
                     procedure_manager.update_top_ranked_items2(dataset, rec_model, config.multicore)
+                results = {k: float(v) for k, v in results.items()}
+                results['epoch'] = epoch
+                data_list.append(results)
+                output_csv_results(data_list)
 
             output_information = procedure_manager.bpr_train_original(
                 dataset, rec_model, loss, epoch, w=w, config=config
@@ -74,6 +81,14 @@ def run_training(config: Config):
             w.close()
 
 
+def output_csv_results(data_list):
+    """
+    Creates a csv output of the test results.
+    """
+    df = pd.DataFrame(data_list)
+    new_column_order = ['epoch'] + [c for c in df.columns.tolist() if c != 'epoch']
+    df[new_column_order].to_csv(utils.get_results_file_name(config), index=False)
+
 if __name__ == '__main__':
     # Load the arguments
     args = parse_args()
@@ -83,7 +98,7 @@ if __name__ == '__main__':
     config = Config(
         args.dataset, args.model, args.bpr_batch, args.recdim, args.layer, args.dropout, args.keepprob, args.a_fold,
         args.testbatch, args.multicore, args.lr, args.decay, args.pretrain, args.seed, args.epochs, args.load,
-        args.path, args.topks, args.tensorboard, args.comment, args.sampling
+        args.checkpoint_path, args.results_path, args.topks, args.tensorboard, args.comment, args.sampling
     )
 
     # Run the training function

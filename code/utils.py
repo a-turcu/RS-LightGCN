@@ -219,15 +219,21 @@ def set_seed(seed):
     torch.manual_seed(seed)
 
 
-def get_file_name(config):
-
+def get_file_name_base(config):
     if config.model_name == 'mf':
-        file = f"mf-{config.dataset}-{config.latent_dim_rec}.pth.tar"
+        return f"mf-{config.dataset}-{config.latent_dim_rec}-{config.sampling}"
     elif config.model_name == 'lgn':
-        file = f"lgn-{config.dataset}-{config.lightGCN_n_layers}-{config.latent_dim_rec}-{config.sampling}.pth.tar"
+        return f"lgn-{config.dataset}-{config.lightGCN_n_layers}-{config.latent_dim_rec}-{config.sampling}"
     else:
         raise NotImplementedError(f'getFileName does not have a path for the {config.model_name} model.')
-    return os.path.join(config.file_path, file)
+
+
+def get_checkpoint_file_name(config):
+    return os.path.join(config.checkpoint_path, get_file_name_base(config) + '.pth.tar')
+
+
+def get_results_file_name(config):
+    return os.path.join(config.results_path, get_file_name_base(config) + '.csv')
 
 
 def train_minibatch(users, posItems, negItems, batch_size):
@@ -412,7 +418,7 @@ def print_config_info(config):
     print("comment:", config.comment)
     print("tensorboard:", config.tensorboard)
     print("LOAD:", config.load_bool)
-    print("Weight path:", config.weight_path)
+    print("Weight path:", config.checkpoint_path)
     print("Test Topks:", config.topks)
     print("using bpr loss")
     print('===========end===================')

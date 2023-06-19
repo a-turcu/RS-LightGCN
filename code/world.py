@@ -18,13 +18,14 @@ ROOT_PATH = os.path.dirname(os.path.dirname(__file__))
 CODE_PATH = join(ROOT_PATH, 'code')
 DATA_PATH = join(ROOT_PATH, 'data')
 BOARD_PATH = join(CODE_PATH, 'runs')
-FILE_PATH = join(CODE_PATH, 'checkpoints')
+CKPT_PATH = join(CODE_PATH, 'checkpoints')
+RESULTS_PATH = join(CODE_PATH, 'results')
 
 sys.path.append(join(CODE_PATH, 'sources'))
 
-
-if not os.path.exists(FILE_PATH):
-    os.makedirs(FILE_PATH, exist_ok=True)
+for f in (CKPT_PATH, RESULTS_PATH):
+    if not os.path.exists(f):
+        os.makedirs(f, exist_ok=True)
 
 
 class FakeArgs:
@@ -42,7 +43,8 @@ class FakeArgs:
         self.lr = 0.001
         self.model = 'lgn'
         self.multicore = 0
-        self.path = './checkpoints'
+        self.checkpoint_path = './checkpoints'
+        self.results_path = './results/'
         self.pretrain = 0
         self.recdim = 64
         self.seed = 2020
@@ -55,8 +57,8 @@ class FakeArgs:
 class Config:
     def __init__(
             self, dataset, model, bpr_batch, recdim, layer, dropout, keepprob, a_fold, testbatch, multicore, lr=0.001,
-            decay=0.0001, pretrain=0, seed=2020, epochs=1000, load=0, path='./checkpoints', topks='[20]', tensorboard=1,
-            comment='lgn', sampling='original'
+            decay=0.0001, pretrain=0, seed=2020, epochs=1000, load=0, checkpoint_path='./checkpoints', results_path='./results/',
+            topks='[20]', tensorboard=1, comment='lgn', sampling='original'
     ):
         import subprocess
 
@@ -75,7 +77,8 @@ class Config:
         self.dataset = dataset
         self.model_name = model
         self.sampling = sampling
-        self.file_path = FILE_PATH
+        self.checkpoint_path = checkpoint_path
+        self.results_path = results_path
         self.board_path = BOARD_PATH
         self.a_split = False
         self.bigdata = False
@@ -90,7 +93,6 @@ class Config:
             raise NotImplementedError(f"Haven't supported {self.model_name} yet!, try {self.all_models}")
         self.train_epochs = epochs
         self.load_bool = load
-        self.weight_path = path
         self.topks = eval(topks)
         self.tensorboard = tensorboard
         self.comment = comment
