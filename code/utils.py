@@ -17,12 +17,15 @@ from cppimport import imp_from_filepath
 from os.path import join, dirname
 import dataloader
 from pprint import pprint
+import pandas as pd
 
 
 class Sampling:
     def __init__(self, seed, sampling):
         self.top_ranked_items = None
         self.epoch = None
+        self.pos_count = None
+        self.neg_count = None
         try:
             path = join(dirname(__file__), "sources/sampling.cpp")
             self.sampling = imp_from_filepath(path)
@@ -46,6 +49,8 @@ class Sampling:
             self.sample = self.stratified_sample_original
         elif sampling == 'stratified_new_random':
             self.sample = self.stratified_random_sample
+        elif sampling == 'normalised_sample_original':
+            self.sample = self.normalised_sample_original
         elif sampling == 'mixed':
             self.sample = self.mixed
         else:
@@ -141,6 +146,67 @@ class Sampling:
                     if neg_item not in dataset.all_pos_map[user_id]:
                         break
                 sample_list.append([user_id, pos_item, neg_item])
+        return np.array(sample_list)
+
+    def normalised_sample_original(self, dataset):
+        """
+        In this function, we try to "normalise" the number of items that are being randomly selected such that
+        there is a more equal number of items selected as positive and negative on each run.
+        """
+        if self.pos_count is None:
+            self.pos_count = {item_id: 0 for item_id in dataset.df_train['item_id'].unique()}
+            self.neg_count = self.pos_count.copy()
+        elif self.epoch > 10:
+            # Create a pool with the items that have been less selected as negatives.
+            median_neg_count = np.median([v for v in self.neg_count.values()])
+            neg_item_pool = [k for k, v in self.neg_count.items() if v <= median_neg_count]
+            neg_item_pool_len = len(neg_item_pool)
+
+            # Create a weight map for the pos item weighing.
+            median_pos_count = np.median([v for v in self.pos_count.values()])
+            pos_weight_map = {k: 2 if v <= median_pos_count else 1 for k, v in self.pos_count.items()}
+
+        sample_list = []
+        if self.epoch > 10:
+            for user_id in dataset.df_train['user_id'].unique():
+                # Retrieve the positive objects for the user
+                user_items_raw = dataset.all_pos[user_id].tolist()
+                # Create a list that contains the positive items that have a low count
+                items_with_low_pos_count = [i for i in dataset.all_pos[user_id] if pos_weight_map[i] == 2]
+                # Combine both list
+                user_items = user_items_raw + items_with_low_pos_count
+                user_items_len = len(user_items)
+                for i in range(dataset.mean_item_per_user):
+                    # Randomly select index
+                    pos_index = np.random.randint(0, user_items_len)
+                    pos_item = user_items[pos_index]
+                    # Break when we find a positive item
+                    while True:
+                        # We only sample for the items that were selected as negative less.
+                        neg_item = neg_item_pool[np.random.randint(0, neg_item_pool_len)]
+                        if neg_item not in user_items:
+                            break
+                    # Counting
+                    self.pos_count[pos_item] += 1
+                    self.neg_count[neg_item] += 1
+                    # Add sample
+                    sample_list.append([user_id, pos_item, neg_item])
+        else:
+            # Original random sampling
+            for user_id in dataset.df_train['user_id'].unique():
+                user_items = dataset.all_pos[user_id]
+                user_items_len = len(user_items)
+                for i in range(dataset.mean_item_per_user):
+                    pos_index = np.random.randint(0, user_items_len)
+                    pos_item = user_items[pos_index]
+                    while True:
+                        neg_item = np.random.randint(0, dataset.m_item)
+                        if neg_item not in user_items:
+                            break
+
+                    self.pos_count[pos_item] += 1
+                    self.neg_count[neg_item] += 1
+                    sample_list.append([user_id, pos_item, neg_item])
         return np.array(sample_list)
 
 

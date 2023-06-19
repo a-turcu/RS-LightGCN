@@ -34,10 +34,12 @@ loss = BrpLoss(rec_model, config)
 # weight_file = get_file_name(config)
 
 
+#
+# weight_file = 'checkpoints/lgn-gowalla-3-64.pth.tar'
+#
+# # weight_file = 'checkpoints/lgn-gowalla-3-64.pth.tar'
 
-# weight_file = '/home/ryan/PycharmProjects/RS-LightGCN/code/checkpoints/lgn-gowalla-3-64.pth.tar'
-
-weight_file = '/home/ryan/PycharmProjects/RS-LightGCN/code/checkpoints/lgn-gowalla-3-64.pth.tar'
+weight_file = 'checkpoints/lgn-gowalla-3-64-stratified_original.pth.tar'
 
 print(f"load and save to {weight_file}")
 
@@ -184,7 +186,15 @@ item_pivot_gr['recall'] = item_pivot_gr['tp'] / (item_pivot_gr['tp'] + item_pivo
 
 
 
+item_pivot['fp_minus_fn'] = item_pivot['fp'] - item_pivot['fn']
 
+item_pivot['fp_minus_fn'].quantile(0.4)
+
+item_pivot['fp_minus_fn_gr'] = ''
+item_pivot.loc[item_pivot['fp_minus_fn'] < -4, 'item_count_gr'] = 'less_-3'
+item_pivot.loc[(item_pivot['item_count'] >= -4) & (item_pivot['item_count'] < -2), 'item_count_gr'] = '12_to_20'
+item_pivot.loc[(item_pivot['item_count'] >= -2) & (item_pivot['item_count'] < 0), 'item_count_gr'] = '20_to_50'
+item_pivot.loc[item_pivot['item_count'] >= 0, 'item_count_gr'] = 'more_50'
 
 
 # ((user_pivot['item_count'] >= 12) & (user_pivot['item_count'] < 20)).sum()
@@ -196,37 +206,37 @@ item_pivot_gr['recall'] = item_pivot_gr['tp'] / (item_pivot_gr['tp'] + item_pivo
 
 
 
-
-
-
-
-import matplotlib.pyplot as plt
-
-import seaborn as sns
-
-sns.lineplot(data=train_df_u_sort, x='cur_index', y='item_id')
-plt.show()
-
-import matplotlib.pyplot as plt
-
-import seaborn as sns
-
-sns.lineplot(data=train_df_u_sort.iloc[:10_000], x='cur_index', y='item_id')
-plt.show()
-
-
-train_df_i_gr = train_df.groupby('item_id')['user_id'].count().reset_index()
-train_df_i_sort = train_df_i_gr.sort_values('user_id').reset_index(drop=True)
-
-train_df_i_sort['cur_index'] = train_df_i_sort.index
-
-import matplotlib.pyplot as plt
-
-import seaborn as sns
-
-sns.lineplot(data=train_df_i_sort, x='cur_index', y='user_id')
-plt.show()
-
-
-
-
+#
+#
+#
+#
+# import matplotlib.pyplot as plt
+#
+# import seaborn as sns
+#
+# sns.lineplot(data=train_df_u_sort, x='cur_index', y='item_id')
+# plt.show()
+#
+# import matplotlib.pyplot as plt
+#
+# import seaborn as sns
+#
+# sns.lineplot(data=train_df_u_sort.iloc[:10_000], x='cur_index', y='item_id')
+# plt.show()
+#
+#
+# train_df_i_gr = train_df.groupby('item_id')['user_id'].count().reset_index()
+# train_df_i_sort = train_df_i_gr.sort_values('user_id').reset_index(drop=True)
+#
+# train_df_i_sort['cur_index'] = train_df_i_sort.index
+#
+# import matplotlib.pyplot as plt
+#
+# import seaborn as sns
+#
+# sns.lineplot(data=train_df_i_sort, x='cur_index', y='user_id')
+# plt.show()
+#
+#
+#
+#
