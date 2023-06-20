@@ -65,6 +65,8 @@ def run_training(config: Config):
                     procedure_manager.update_top_ranked_items(dataset, rec_model, config.multicore)
                 elif config.sampling in ('hard_neg2', 'mixed'):
                     procedure_manager.update_top_ranked_items2(dataset, rec_model, config.multicore)
+                elif config.sampling == 'hard_neg3':
+                    procedure_manager.update_top_ranked_items3(dataset, rec_model, config.multicore)
                 results = {k: float(v) for k, v in results.items()}
                 results['epoch'] = epoch
                 data_list.append(results)
