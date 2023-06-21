@@ -45,6 +45,7 @@ class Sampling:
             'hard_neg': self.hard_neg_sample,
             'hard_neg2': self.hard_neg_sample2,
             'hard_neg3': self.hard_neg_sample3,
+            'hard_neg4': self.hard_neg_sample4,
             'stratified_original': self.stratified_sample_original,
             'stratified_new_random': self.stratified_random_sample,
             'normalised_sample_original': self.normalised_sample_original,
@@ -284,6 +285,32 @@ class Sampling:
         return np.array(sample_list)
 
     def hard_neg_sample3(self, dataset, hard_neg_prob=0.01):
+        """
+        This sampling method hard samples only half the time
+        """
+        if self.epoch < 5:
+            return self.new_random_sample(dataset)
+        sample_list = []
+        # Original random sampling
+        for user_id in dataset.df_train['user_id'].unique():
+            user_items = dataset.all_pos[user_id]
+            arr_len = len(user_items)
+            for i in range(dataset.mean_item_per_user):
+                pos_item = user_items[np.random.randint(0, arr_len)]
+                if np.random.rand() < hard_neg_prob:
+                    # Hard neg sampling
+                    rand_int = np.random.randint(0, 1000)
+                    neg_item = int(self.top_ranked_items[user_id, rand_int])
+                else:
+                    # Random sampling
+                    while True:
+                        neg_item = np.random.randint(0, dataset.m_item)
+                        if neg_item not in dataset.all_pos_map[user_id]:
+                            break
+                sample_list.append([user_id, pos_item, neg_item])
+        return np.array(sample_list)
+
+    def hard_neg_sample4(self, dataset, hard_neg_prob=0.05):
         """
         This sampling method hard samples only half the time
         """

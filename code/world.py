@@ -51,7 +51,7 @@ class FakeArgs:
         self.tensorboard = 1
         self.testbatch = 100
         self.topks = '[20]'
-        self.sampling = 'hard_neg3'  # 'original'  # 'hard_neg'
+        self.sampling = 'hard_neg4'  # 'original'  # 'hard_neg'
 
 
 class Config:
