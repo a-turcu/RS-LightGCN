@@ -553,11 +553,17 @@ def mrr_at_k(r, k):
     """
     Mean Reciprocal Rank
     """
+    # Only select the k first columns
     pred_data = r[:, :k]
-    scores = np.log2(1./np.arange(1, k+1))
-    pred_data = pred_data/scores
-    pred_data = pred_data.sum(1)
-    return np.sum(pred_data)
+    # Get the index of the first non-zero value (ie the first correct prediction)
+    first_corr_index = (pred_data != 0).argmax(axis=1)
+    # Initialise the mrr vector. By default, each user has a score of 0.
+    mrr = np.zeros(pred_data.shape[0])
+    # Only update the users that actually have at least one correct prediction
+    cond = (pred_data != 0).sum(1) != 0
+    # Update the mean reciprocal rank for each uses
+    mrr[cond] = (1 / (1 + first_corr_index))[cond]
+    return np.sum(mrr)
 
 
 def ndcg_at_k_r(test_data, r, k):

@@ -26,6 +26,7 @@ config = Config(
 )
 dataset = DataLoader(config)
 train_df = dataset.load_train_file()
+n_items = train_df['item_id'].unique().shape[0]
 
 # Instantiate the recommender system model
 rec_model = LightGCN(config, dataset)
@@ -46,6 +47,7 @@ item_to_user_count_map = dict(zip(train_df_i_sort['item_id'], train_df_i_sort['u
 df_analysis = {}
 user_pivot = {}
 item_pivot = {}
+catalogue_coverage = {}
 user_item_pivot = {}
 user_pivot_gr = {}
 item_pivot_gr = {}
@@ -119,6 +121,8 @@ for f in file_list:
     new_user_list = []
     for u in users_list:
         new_user_list += u
+
+    catalogue_coverage[f] = len(set(torch.concat(new_rating_list).tolist())) / n_items
 
     # Create a dataframe with the results for each user item pair
     data_list = []

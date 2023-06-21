@@ -57,16 +57,18 @@ class ProcedureManager:
         sorted_items = data_batch[0].numpy()
         groundTrue = data_batch[1]
         r = utils.get_label(groundTrue, sorted_items)
-        pre, recall, ndcg = [], [], []
+        pre, recall, ndcg, mrr = [], [], [], []
         for k in self.topks:
             ret = utils.recall_precision_at_k(groundTrue, r, k)
             pre.append(ret['precision'])
             recall.append(ret['recall'])
             ndcg.append(utils.ndcg_at_k_r(groundTrue, r, k))
+            mrr.append(utils.mrr_at_k(r, k))
         return {
-            'recall':np.array(recall),
-            'precision':np.array(pre),
-            'ndcg':np.array(ndcg)
+            'recall': np.array(recall),
+            'precision': np.array(pre),
+            'ndcg': np.array(ndcg),
+            'mrr': np.array(mrr)
         }
 
     def test(self, dataset, model, epoch, w=None, multicore=0):
@@ -81,7 +83,8 @@ class ProcedureManager:
         results = {
             'precision': np.zeros(len(self.topks)),
             'recall': np.zeros(len(self.topks)),
-            'ndcg': np.zeros(len(self.topks))
+            'ndcg': np.zeros(len(self.topks)),
+            'mrr': np.zeros(len(self.topks))
         }
         with torch.no_grad():
             users = list(dataset.test_dict.keys())
@@ -139,9 +142,11 @@ class ProcedureManager:
                 results['recall'] += result['recall']
                 results['precision'] += result['precision']
                 results['ndcg'] += result['ndcg']
+                results['mrr'] += result['mrr']
             results['recall'] /= float(len(users))
             results['precision'] /= float(len(users))
             results['ndcg'] /= float(len(users))
+            results['mrr'] /= float(len(users))
             # results['auc'] = np.mean(auc_record)
             if self.tensorboard:
                 w.add_scalars(
@@ -155,6 +160,10 @@ class ProcedureManager:
                 w.add_scalars(
                     f'Test/NDCG@{self.topks}',
                     {str(self.topks[i]): results['ndcg'][i] for i in range(len(self.topks))}, epoch
+                )
+                w.add_scalars(
+                    f'Test/MRR@{self.topks}',
+                    {str(self.topks[i]): results['mrr'][i] for i in range(len(self.topks))}, epoch
                 )
             if multicore == 1:
                 pool.close()
