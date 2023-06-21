@@ -50,6 +50,7 @@ class Sampling:
             'stratified_new_random': self.stratified_random_sample,
             'normalised_sample_original': self.normalised_sample_original,
             'weigthed_item_prob_sampling': self.weigthed_item_prob_sampling,
+            'stronger_weigthed_item_prob_sampling': self.stronger_weigthed_item_prob_sampling,
         }
         if sampling in sample_map:
             self.sample = sample_map[sampling]
@@ -222,6 +223,48 @@ class Sampling:
             item_gr['weight'] = 1
             cond = item_gr['user_id'] <= median
             item_gr.loc[cond, 'weight'] = (median / item_gr.loc[cond, 'user_id'])**0.5
+            item_to_weight_dic = dict(zip(item_gr['item_id'], item_gr['weight']))
+
+            self.weights_norm = []
+            all_pos_adj = []
+            for i, item_list in enumerate(dataset.all_pos):
+                weights = [item_to_weight_dic[i] for i in item_list]
+                weights_sum = sum(weights)
+                weights_norm = [w / weights_sum for w in weights]
+                all_pos_adj.append(np.random.choice(item_list, size=arr_len, p=weights_norm))
+                self.weights_norm.append(weights_norm)
+        else:
+            all_pos_adj = []
+            for i, item_list in enumerate(dataset.all_pos):
+                all_pos_adj.append(np.random.choice(item_list, size=arr_len, p=self.weights_norm[i]))
+
+        sample_list = []
+        # Original random sampling
+        for user_id in dataset.df_train['user_id'].unique():
+            user_items = dataset.all_pos[user_id]
+            for i in range(dataset.mean_item_per_user):
+                pos_item = all_pos_adj[user_id][np.random.randint(0, arr_len)]
+                while True:
+                    neg_item = np.random.randint(0, dataset.m_item)
+                    if neg_item not in user_items:
+                        break
+                sample_list.append([user_id, pos_item, neg_item])
+        return np.array(sample_list)
+
+    def stronger_weigthed_item_prob_sampling(self, dataset):
+        """
+        In this function, we want to balance out the items by popularity. Meaning that if an item is popular, it
+        will be more likely to be chosen as a positive item. Hence, we add a bit more probably for less popular items
+        to be selected as positives.
+        """
+        arr_len = 2 * dataset.mean_item_per_user
+        if self.weights_norm is None:
+            item_gr = dataset.df_train.groupby('item_id')['user_id'].count().reset_index()
+            median = item_gr['user_id'].median()
+            item_gr['weight'] = 1
+            cond = item_gr['user_id'] <= median
+            item_gr.loc[cond, 'weight'] = (median / item_gr.loc[cond, 'user_id'])**0.5
+            item_gr['weight'] = (item_gr['weight'] - 1) * 2 + 1
             item_to_weight_dic = dict(zip(item_gr['item_id'], item_gr['weight']))
 
             self.weights_norm = []
