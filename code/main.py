@@ -3,6 +3,7 @@ import pandas as pd
 import utils
 from model import PureMf, LightGCN
 from parse import parse_args
+from ultragcn import UltraGcn
 from world import Config, cprint, FakeArgs
 import torch
 from tensorboardX import SummaryWriter
@@ -26,7 +27,7 @@ def run_training(config: Config):
     else:
         dataset = DataLoader(config)
     # Create a model string to model map
-    models = {'mf': PureMf, 'lgn': LightGCN}
+    models = {'mf': PureMf, 'lgn': LightGCN, 'ugn': UltraGcn}
     # Instantiate the recommender system model
     rec_model = models[config.model_name](config, dataset)
     # Move the model to the device

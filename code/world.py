@@ -86,7 +86,7 @@ class Config:
         self.device = torch.device('cuda' if self.gpu else "cpu")
         self.cores = multiprocessing.cpu_count() // 2
         self.all_dataset = ['lastfm', 'gowalla', 'yelp2018', 'amazon-book']
-        self.all_models = ['mf', 'lgn']
+        self.all_models = ['mf', 'lgn', 'ugn']
         if self.dataset not in self.all_dataset:
             raise NotImplementedError(f"Haven't supported {self.dataset} yet!, try {self.all_dataset}")
         if self.model_name not in self.all_models:

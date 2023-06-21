@@ -199,6 +199,10 @@ class DataLoader(Dataset):
         self.users_D[self.users_D == 0.] = 1
         self.items_D = np.array(self.user_item_net.sum(axis=0)).squeeze()
         self.items_D[self.items_D == 0.] = 1.
+        self.constraint_mat = {
+            "beta_uD": torch.from_numpy(np.sqrt(self.users_D + 1) / self.users_D).reshape(-1),
+            "beta_iD": torch.from_numpy(1 / np.sqrt(self.items_D + 1)).reshape(-1)
+        }
 
     def get_df_stats(self):
         user_id_max = np.max((self.df_train['user_id'].max(), self.df_test['user_id'].max()))

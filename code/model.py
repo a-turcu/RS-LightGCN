@@ -93,7 +93,7 @@ class LightGCN(BasicModel):
 
     def __init_weight(self):
         self.num_users = self.dataset.n_user
-        self.num_items  = self.dataset.m_item
+        self.num_items = self.dataset.m_item
         self.latent_dim = self.config.latent_dim_rec
         self.n_layers = self.config.lightGCN_n_layers
         self.keep_prob = self.config.keep_prob
