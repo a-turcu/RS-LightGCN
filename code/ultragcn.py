@@ -64,7 +64,7 @@ class UltraGcn(BasicModel):
             ii_constraint_mat = self.pload(ii_cons_mat_path)
             ii_neighbor_mat = self.pload(ii_neigh_mat_path)
         else:
-            ii_constraint_mat, ii_neighbor_mat = self.get_ii_constraint_mat()
+            ii_neighbor_mat, ii_constraint_mat = self.get_ii_constraint_mat()
             self.pstore(ii_constraint_mat, ii_cons_mat_path)
             self.pstore(ii_neighbor_mat, ii_neigh_mat_path)
 
@@ -94,7 +94,7 @@ class UltraGcn(BasicModel):
     def get_omegas(self, users, pos_items, neg_items):
 
         if self.w2 > 0:
-            pos_weight = torch.mul(self.beta_uD[users], self.self.beta_iD[pos_items]).to(self.device)
+            pos_weight = torch.mul(self.beta_uD[users], self.beta_iD[pos_items]).to(self.device)
             pow_weight = self.w1 + self.w2 * pos_weight
         else:
             pos_weight = self.w1 * torch.ones(len(pos_items)).to(self.device)

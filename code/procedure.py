@@ -54,7 +54,7 @@ class ProcedureManager:
                 if self.ugn_optimizer is None:
                     self.ugn_optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
                 model.zero_grad()
-                loss = model(users, pos_items, neg_items)
+                loss = model(batch_users, batch_pos, batch_neg)
                 if config.tensorboard:
                     w.add_scalar("Loss/train_batch", loss, self.bpr_batch_size * epoch + batch_i)
                 loss.backward()
