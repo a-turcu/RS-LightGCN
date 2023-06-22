@@ -32,7 +32,7 @@ class FakeArgs:
     def __init__(self):
         self.a_fold = 100
         self.bpr_batch = 2048
-        self.comment = 'lgn'
+        self.comment = 'ugn'
         self.dataset = 'gowalla'  # 'lastfm'  # '' #'gowalla'  # 'yelp2018'  # 'amazon-book'
         self.decay = 0.0001
         self.dropout = 0
@@ -41,7 +41,7 @@ class FakeArgs:
         self.layer = 3
         self.load = 0
         self.lr = 0.001
-        self.model = 'lgn'
+        self.model = 'ugn'
         self.multicore = 0
         self.checkpoint_path = './checkpoints'
         self.results_path = './results/'

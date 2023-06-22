@@ -25,6 +25,7 @@ class ProcedureManager:
         self.test_u_batch_size = config.test_u_batch_size
         self.sampling_method = config.sampling
         self.top_ranked_items = None
+        self.ugn_optimizer = None
 
     def bpr_train_original(self, dataset, model, loss, epoch, w=None, config=None):
         model.train()
@@ -44,10 +45,21 @@ class ProcedureManager:
         aver_loss = 0.
         enumerator = enumerate(utils.train_minibatch(users, pos_items, neg_items, batch_size=self.bpr_batch_size))
         for batch_i, (batch_users, batch_pos, batch_neg) in enumerator:
-            cri = loss.stage_one(batch_users, batch_pos, batch_neg)
-            aver_loss += cri
-            if config.tensorboard:
-                w.add_scalar(f'BPRLoss/BPR', cri, epoch * int(len(users) / self.bpr_batch_size) + batch_i)
+            if config.model_name in ('mf', 'lgn'):
+                cri = loss.stage_one(batch_users, batch_pos, batch_neg)
+                aver_loss += cri
+                if config.tensorboard:
+                    w.add_scalar(f'BPRLoss/BPR', cri, epoch * int(len(users) / self.bpr_batch_size) + batch_i)
+            elif config.model_name == 'ugn':
+                if self.ugn_optimizer is None:
+                    self.ugn_optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
+                model.zero_grad()
+                loss = model(users, pos_items, neg_items)
+                if config.tensorboard:
+                    w.add_scalar("Loss/train_batch", loss, self.bpr_batch_size * epoch + batch_i)
+                loss.backward()
+                self.ugn_optimizer.step()
+
         aver_loss = aver_loss / total_batch
         time_info = Timer.dict()
         Timer.zero()

@@ -33,7 +33,10 @@ def run_training(config: Config):
     # Move the model to the device
     rec_model = rec_model.to(config.device)
     # Instantiate the BPRLoss
-    loss = utils.BrpLoss(rec_model, config)
+    if config.model_name in ('mf', 'lgn'):
+        loss = utils.BrpLoss(rec_model, config)
+    else:
+        loss = None
     # Load weight file
     weight_file = utils.get_checkpoint_file_name(config)
     print(f"load and save to {weight_file}")

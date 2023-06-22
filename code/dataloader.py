@@ -33,7 +33,6 @@ class DataLoader(Dataset):
         self.mode = self.mode_dict['train']
         self.n_user = 0
         self.m_item = 0
-        self.path = self.data_path
         self.graph = None
         self.train_data_size = None
         self.test_data_size = None

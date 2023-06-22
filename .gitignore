@@ -18,3 +18,5 @@ __pycache__/
 /code/.ipynb_checkpoints/
 /data/gowalla/s_pre_adj_mat.npz
 /data/lastfm/s_pre_adj_mat.npz
+/code/data/ii_cons_mat.pickle
+/code/data/ii_neigh_mat.pickle
