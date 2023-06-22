@@ -64,9 +64,9 @@ def run_training(config: Config):
                 results = procedure_manager.test(dataset, rec_model, epoch, w, config.multicore)
                 if config.sampling == 'hard_neg':
                     procedure_manager.update_top_ranked_items(dataset, rec_model, config.multicore)
-                elif config.sampling in ('hard_neg2', 'mixed'):
+                elif config.sampling in ('hard_neg2'):
                     procedure_manager.update_top_ranked_items2(dataset, rec_model, config.multicore)
-                elif config.sampling in ('hard_neg3', 'hard_neg4'):
+                elif config.sampling in ('hard_neg3', 'hard_neg4', 'mixed'):
                     procedure_manager.update_top_ranked_items3(dataset, rec_model, config.multicore)
                 results = {k: float(v) for k, v in results.items()}
                 results['epoch'] = epoch

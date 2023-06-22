@@ -51,6 +51,7 @@ class Sampling:
             'normalised_sample_original': self.normalised_sample_original,
             'weigthed_item_prob_sampling': self.weigthed_item_prob_sampling,
             'stronger_weigthed_item_prob_sampling': self.stronger_weigthed_item_prob_sampling,
+            'mixed': self.mixed,
         }
         if sampling in sample_map:
             self.sample = sample_map[sampling]
@@ -379,14 +380,52 @@ class Sampling:
                 sample_list.append([user_id, pos_item, neg_item])
         return np.array(sample_list)
 
-    def mixed(self, dataset, original_prob=0.5):
+    def mixed(self, dataset, hard_neg_prob=0.05):
         """
-        This sampling method mixes the original sampling and random sampling strategy.
+        In this function, we want to balance out the items by popularity. Meaning that if an item is popular, it
+        will be more likely to be chosen as a positive item. Hence, we add a bit more probably for less popular items
+        to be selected as positives.
         """
-        if np.random.rand() < original_prob:
-            return self.uniform_sample_original(dataset)
+        arr_len = 2*dataset.mean_item_per_user
+        if self.weights_norm is None:
+            item_gr = dataset.df_train.groupby('item_id')['user_id'].count().reset_index()
+            median = item_gr['user_id'].median()
+            item_gr['weight'] = 1
+            cond = item_gr['user_id'] <= median
+            item_gr.loc[cond, 'weight'] = (median / item_gr.loc[cond, 'user_id'])**0.5
+            item_to_weight_dic = dict(zip(item_gr['item_id'], item_gr['weight']))
+
+            self.weights_norm = []
+            all_pos_adj = []
+            for i, item_list in enumerate(dataset.all_pos):
+                weights = [item_to_weight_dic[i] for i in item_list]
+                weights_sum = sum(weights)
+                weights_norm = [w / weights_sum for w in weights]
+                all_pos_adj.append(np.random.choice(item_list, size=arr_len, p=weights_norm))
+                self.weights_norm.append(weights_norm)
         else:
-            return self.new_random_sample(dataset)
+            all_pos_adj = []
+            for i, item_list in enumerate(dataset.all_pos):
+                all_pos_adj.append(np.random.choice(item_list, size=arr_len, p=self.weights_norm[i]))
+
+        sample_list = []
+        # Original random sampling
+        for user_id in dataset.df_train['user_id'].unique():
+            user_items = dataset.all_pos[user_id]
+            for i in range(dataset.mean_item_per_user):
+                pos_item = all_pos_adj[user_id][np.random.randint(0, arr_len)]
+                if np.random.rand() < hard_neg_prob:
+                    # Hard neg sampling
+                    rand_int = np.random.randint(0, 1000)
+                    neg_item = int(self.top_ranked_items[user_id, rand_int])
+                else:
+                    # Random sampling
+                    while True:
+                        neg_item = np.random.randint(0, dataset.m_item)
+                        if neg_item not in dataset.all_pos_map[user_id]:
+                            break
+                sample_list.append([user_id, pos_item, neg_item])
+        return np.array(sample_list)
 
 
 class BrpLoss:
