@@ -8,6 +8,8 @@ import time
 import pandas as pd
 import numpy as np
 import os
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 # Ensure the current dir is 'code'
 try:
@@ -43,6 +45,8 @@ train_df_i_gr = train_df.groupby('item_id')['user_id'].count().reset_index()
 train_df_i_sort = train_df_i_gr.sort_values('user_id').reset_index(drop=True)
 item_to_user_count_map = dict(zip(train_df_i_sort['item_id'], train_df_i_sort['user_id']))
 
+plotting = True
+
 # Create dictionary to store information for each model checkpoint.
 df_analysis = {}
 user_pivot = {}
@@ -51,7 +55,7 @@ catalogue_coverage = {}
 user_item_pivot = {}
 user_pivot_gr = {}
 item_pivot_gr = {}
-
+ax_dic = {}
 
 # Loop through the checkpoint files
 file_list = [f for f in os.listdir('checkpoints/') if f.endswith('.pth.tar')]
@@ -230,6 +234,34 @@ for f in file_list:
     user_item_pivot[f]['precision'] = user_item_pivot[f]['tp'] / (user_item_pivot[f]['tp'] + user_item_pivot[f]['fp'])
     user_item_pivot[f]['recall'] = user_item_pivot[f]['tp'] / (user_item_pivot[f]['tp'] + user_item_pivot[f]['fn'])
 
+    df_plot = item_pivot_gr[f].copy()
+    user_count_gr_rename = {
+        'less_10': 'Less than 10',
+        '10_to_13': '10 to 12',
+        '13_to_20': '13 to 19',
+        'more_20': 'More than 19'
+    }
+    df_plot['user_count_gr'] = df_plot['user_count_gr'].map(user_count_gr_rename)
+
+    col_rename = {
+        'user_count_gr': 'Number of users',
+        'precision': 'Precision',
+        'recall': 'Recall',
+    }
+    df_plot = df_plot.rename(columns=col_rename)
+    df_plot = df_plot.rename(columns={'user_count_gr': 'Number of users'})
+    df_plot_pivot = pd.melt(
+        df_plot, id_vars='Number of users', value_vars=['Precision', 'Recall'], var_name='Metrics', value_name='%'
+    )
+
+    df_plot_pivot['%'] = df_plot_pivot['%'].map(lambda x: np.round(x * 100, 1))
+    ax_dic[f] = sns.barplot(data=df_plot_pivot, x='Number of users', y="%", hue="Metrics")
+    for i in ax_dic[f].containers:
+        ax_dic[f].bar_label(i, )
+    plt.title(f'Items grouped by popularity - {f.split(".")[0].split("-")[-1]}')
+    plt.savefig(f'plot-{f.split(".")[0]}.png')
+    plt.clf()
+
     # Time recording printout.
     print(f'File {f} took: {time.time() - start}')
 
@@ -270,3 +302,63 @@ for f in file_list:
 #
 #
 #
+
+
+#
+# # df10 = item_pivot_gr['lgn-gowalla-3-64-original.pth.tar']
+# #
+# #
+# # df10.to_csv('df10.csv', index=False)
+#
+# df_plot = pd.read_csv('df10.csv')
+#
+#
+# df11 = pd.melt(df_plot, id_vars='item_count_gr', value_vars=['fn', 'fp', 'tp'])
+#
+#
+#
+# df_plot_pivot = pd.melt(df_plot, id_vars='item_count_gr', value_vars=['precision', 'recall'])
+#
+#
+# import matplotlib.pyplot as plt
+# import seaborn as sns
+#
+#
+# # sns.barplot(data=df11, x="item_count_gr", y="value", hue="variable")
+#
+#
+# sns.barplot(data=df_plot_pivot, x="item_count_gr", y="value", hue="variable")
+# plt.show()
+#
+#
+# # # set width of bar
+# barWidth = 0.25
+# fig = plt.subplots(figsize=(12, 8))
+#
+# # set height of bar
+#
+#
+# # Set position of bar on X axis
+# br1 = np.arange(len(df10))
+# br2 = [x + barWidth for x in br1]
+# br3 = [x + barWidth for x in br2]
+#
+# # Make the plot
+# plt.bar(br1, df10['fn'], color ='r', width = barWidth,
+# 		edgecolor ='grey', label ='fn')
+# plt.bar(br2, df10['fp'], color ='g', width = barWidth,
+# 		edgecolor ='grey', label ='fp')
+# plt.bar(br3, df10['tp'], color ='b', width = barWidth,
+# 		edgecolor ='grey', label ='tp')
+#
+# # Adding Xticks
+# plt.xlabel('Branch', fontweight ='bold', fontsize = 15)
+# plt.ylabel('Students passed', fontweight ='bold', fontsize = 15)
+# # plt.xticks([r + barWidth for r in range(len(df10))],
+# # 		['2015', '2016', '2017', '2018', '2019'])
+# #
+# # plt.legend()
+# plt.show()
+#
+#
+

@@ -18,3 +18,12 @@ __pycache__/
 /code/.ipynb_checkpoints/
 /data/gowalla/s_pre_adj_mat.npz
 /data/lastfm/s_pre_adj_mat.npz
+/code/df10.csv
+/code/plot-lgn-gowalla-3-64-hard_neg3.png
+/code/plot-lgn-gowalla-3-64-hard_neg4.png
+/code/plot-lgn-gowalla-3-64-mixed.png
+/code/plot-lgn-gowalla-3-64-normalised_sample_original.png
+/code/plot-lgn-gowalla-3-64-original.png
+/code/plot-lgn-gowalla-3-64-stratified_original.png
+/code/plot-lgn-gowalla-3-64-stronger_weigthed_item_prob_sampling.png
+/code/plot-lgn-gowalla-3-64-weigthed_item_prob_sampling.png
