@@ -171,41 +171,8 @@ class ProcedureManager:
             return results
 
     def update_top_ranked_items(self, dataset, model, multicore=0):
-        u_batch_size = self.test_u_batch_size
-        # eval mode with no dropout
-        model = model.eval()
-        pool = None
-        if multicore == 1:
-            cores = multiprocessing.cpu_count() // 2
-            pool = multiprocessing.Pool(cores)
-        with torch.no_grad():
-            users = dataset.df_train['user_id'].unique().tolist()
-            users.sort()
-            try:
-                assert u_batch_size <= len(users) / 10
-            except AssertionError:
-                print(f"test_u_batch_size is too big for this dataset, try a small one {len(users) // 10}")
-            top_ranked_list = []
-            for batch_users in utils.test_minibatch(users, batch_size=u_batch_size):
-                all_pos = dataset.get_user_pos_items(batch_users)
-                batch_users_gpu = torch.Tensor(batch_users).long().to(self.device)
-
-                rating = model.get_users_rating(batch_users_gpu)
-                exclude_index = []
-                exclude_items = []
-                for range_i, items in enumerate(all_pos):
-                    exclude_index.extend([range_i] * len(items))
-                    exclude_items.extend(items)
-                rating[exclude_index, exclude_items] = -(1 << 10)
-                top_ranked_list.append(torch.topk(rating, k=1000)[1])
-                rating = rating.cpu().numpy()
-                del rating
-            self.sampler_helper.top_ranked_items = torch.concat(top_ranked_list)
-            del top_ranked_list
-            if multicore == 1:
-                pool.close()
-
-    def update_top_ranked_items2(self, dataset, model, multicore=0):
+        hard_neg_len = int(dataset.m_item * 0.02)
+        hard_neg_pool = int(dataset.m_item * 0.1)
         u_batch_size = self.test_u_batch_size
         # eval mode with no dropout
         model = model.eval()
@@ -233,44 +200,9 @@ class ProcedureManager:
                     exclude_items.extend(items)
                 rating[exclude_index, exclude_items] = -(1 << 10)
                 top_ranked_list.append(
-                    torch.topk(rating, k=15_000)[1][:, np.random.choice(range(15_000), size=1000, replace=False)]
-                )
-                rating = rating.cpu().numpy()
-                del rating
-            self.sampler_helper.top_ranked_items = torch.concat(top_ranked_list)
-            del top_ranked_list
-            if multicore == 1:
-                pool.close()
-
-    def update_top_ranked_items3(self, dataset, model, multicore=0):
-        u_batch_size = self.test_u_batch_size
-        # eval mode with no dropout
-        model = model.eval()
-        pool = None
-        if multicore == 1:
-            cores = multiprocessing.cpu_count() // 2
-            pool = multiprocessing.Pool(cores)
-        with torch.no_grad():
-            users = dataset.df_train['user_id'].unique().tolist()
-            users.sort()
-            try:
-                assert u_batch_size <= len(users) / 10
-            except AssertionError:
-                print(f"test_u_batch_size is too big for this dataset, try a small one {len(users) // 10}")
-            top_ranked_list = []
-            for batch_users in utils.test_minibatch(users, batch_size=u_batch_size):
-                all_pos = dataset.get_user_pos_items(batch_users)
-                batch_users_gpu = torch.Tensor(batch_users).long().to(self.device)
-
-                rating = model.get_users_rating(batch_users_gpu)
-                exclude_index = []
-                exclude_items = []
-                for range_i, items in enumerate(all_pos):
-                    exclude_index.extend([range_i] * len(items))
-                    exclude_items.extend(items)
-                rating[exclude_index, exclude_items] = -(1 << 10)
-                top_ranked_list.append(
-                    torch.topk(rating, k=5_000)[1][:, np.random.choice(range(5_000), size=1000, replace=False)]
+                    torch.topk(
+                        rating, k=hard_neg_pool
+                    )[1][:, np.random.choice(range(hard_neg_pool), size=hard_neg_len, replace=False)]
                 )
                 rating = rating.cpu().numpy()
                 del rating

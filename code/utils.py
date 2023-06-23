@@ -42,10 +42,8 @@ class Sampling:
         sample_map = {
             'original': self.uniform_sample_original,
             'new_random': self.new_random_sample,
-            'hard_neg': self.hard_neg_sample,
-            'hard_neg2': self.hard_neg_sample2,
-            'hard_neg3': self.hard_neg_sample3,
-            'hard_neg4': self.hard_neg_sample4,
+            'hard_neg_sample_lp': self.hard_neg_sample_lp,
+            'hard_neg_sample_hp': self.hard_neg_sample_hp,
             'stratified_original': self.stratified_sample_original,
             'stratified_new_random': self.stratified_random_sample,
             'normalised_sample_original': self.normalised_sample_original,
@@ -258,6 +256,7 @@ class Sampling:
         will be more likely to be chosen as a positive item. Hence, we add a bit more probably for less popular items
         to be selected as positives.
         """
+
         arr_len = 2 * dataset.mean_item_per_user
         if self.weights_norm is None:
             item_gr = dataset.df_train.groupby('item_id')['user_id'].count().reset_index()
@@ -294,46 +293,13 @@ class Sampling:
                 sample_list.append([user_id, pos_item, neg_item])
         return np.array(sample_list)
 
-    def hard_neg_sample(self, dataset):
+    def hard_neg_sample_lp(self, dataset, hard_neg_prob=0.01):
         """
-        This is a hard sampling strategy
-        """
-        if self.epoch < 50:
-            return self.new_random_sample(dataset)
-        sample_list = []
-        for user_id, item_id in zip(dataset.df_train['user_id'], dataset.df_train['item_id']):
-            rand_int = np.random.randint(0, 1000)
-            neg_item = int(self.top_ranked_items[user_id, rand_int])
-            sample_list.append([user_id, item_id, neg_item])
-        return np.array(sample_list)
-
-    def hard_neg_sample2(self, dataset, hard_neg_prob=0.5):
-        """
-        This sampling method hard samples only half the time
-        """
-        if self.epoch < 50:
-            return self.new_random_sample(dataset)
-        sample_list = []
-        for user_id, item_id in zip(dataset.df_train['user_id'], dataset.df_train['item_id']):
-            if np.random.rand() < hard_neg_prob:
-                # Hard neg sampling
-                rand_int = np.random.randint(0, 1000)
-                neg_item = int(self.top_ranked_items[user_id, rand_int])
-            else:
-                # Random sampling
-                while True:
-                    neg_item = np.random.randint(0, dataset.m_item)
-                    if neg_item not in dataset.all_pos_map[user_id]:
-                        break
-            sample_list.append([user_id, item_id, neg_item])
-        return np.array(sample_list)
-
-    def hard_neg_sample3(self, dataset, hard_neg_prob=0.01):
-        """
-        This sampling method hard samples only half the time
+        This is the hard negative sampling method with low probability.
         """
         if self.epoch < 5:
             return self.new_random_sample(dataset)
+        hard_neg_len = int(dataset.m_item * 0.02)
         sample_list = []
         # Original random sampling
         for user_id in dataset.df_train['user_id'].unique():
@@ -343,7 +309,7 @@ class Sampling:
                 pos_item = user_items[np.random.randint(0, arr_len)]
                 if np.random.rand() < hard_neg_prob:
                     # Hard neg sampling
-                    rand_int = np.random.randint(0, 1000)
+                    rand_int = np.random.randint(0, hard_neg_len)
                     neg_item = int(self.top_ranked_items[user_id, rand_int])
                 else:
                     # Random sampling
@@ -354,12 +320,13 @@ class Sampling:
                 sample_list.append([user_id, pos_item, neg_item])
         return np.array(sample_list)
 
-    def hard_neg_sample4(self, dataset, hard_neg_prob=0.05):
+    def hard_neg_sample_hp(self, dataset, hard_neg_prob=0.05):
         """
         This sampling method hard samples only half the time
         """
         if self.epoch < 5:
             return self.new_random_sample(dataset)
+        hard_neg_len = int(dataset.m_item * 0.02)
         sample_list = []
         # Original random sampling
         for user_id in dataset.df_train['user_id'].unique():
@@ -369,7 +336,7 @@ class Sampling:
                 pos_item = user_items[np.random.randint(0, arr_len)]
                 if np.random.rand() < hard_neg_prob:
                     # Hard neg sampling
-                    rand_int = np.random.randint(0, 1000)
+                    rand_int = np.random.randint(0, hard_neg_len)
                     neg_item = int(self.top_ranked_items[user_id, rand_int])
                 else:
                     # Random sampling
@@ -387,6 +354,7 @@ class Sampling:
         to be selected as positives.
         """
         arr_len = 2*dataset.mean_item_per_user
+        hard_neg_len = int(dataset.m_item * 0.02)
         if self.weights_norm is None:
             item_gr = dataset.df_train.groupby('item_id')['user_id'].count().reset_index()
             median = item_gr['user_id'].median()
@@ -416,7 +384,7 @@ class Sampling:
                 pos_item = all_pos_adj[user_id][np.random.randint(0, arr_len)]
                 if np.random.rand() < hard_neg_prob:
                     # Hard neg sampling
-                    rand_int = np.random.randint(0, 1000)
+                    rand_int = np.random.randint(0, hard_neg_len)
                     neg_item = int(self.top_ranked_items[user_id, rand_int])
                 else:
                     # Random sampling
