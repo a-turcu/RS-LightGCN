@@ -171,8 +171,8 @@ class ProcedureManager:
             return results
 
     def update_top_ranked_items(self, dataset, model, multicore=0):
-        hard_neg_len = int(dataset.m_item * 0.02)
-        hard_neg_pool = int(dataset.m_item * 0.1)
+        hard_neg_len = int(dataset.m_item * 0.03)
+        hard_neg_pool = int(dataset.m_item * 0.13)
         u_batch_size = self.test_u_batch_size
         # eval mode with no dropout
         model = model.eval()

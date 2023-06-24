@@ -299,7 +299,7 @@ class Sampling:
         """
         if self.epoch < 5:
             return self.new_random_sample(dataset)
-        hard_neg_len = int(dataset.m_item * 0.02)
+        hard_neg_len = int(dataset.m_item * 0.03)
         sample_list = []
         # Original random sampling
         for user_id in dataset.df_train['user_id'].unique():
@@ -326,7 +326,7 @@ class Sampling:
         """
         if self.epoch < 5:
             return self.new_random_sample(dataset)
-        hard_neg_len = int(dataset.m_item * 0.02)
+        hard_neg_len = int(dataset.m_item * 0.03)
         sample_list = []
         # Original random sampling
         for user_id in dataset.df_train['user_id'].unique():
@@ -354,7 +354,7 @@ class Sampling:
         to be selected as positives.
         """
         arr_len = 2*dataset.mean_item_per_user
-        hard_neg_len = int(dataset.m_item * 0.02)
+        hard_neg_len = int(dataset.m_item * 0.03)
         if self.weights_norm is None:
             item_gr = dataset.df_train.groupby('item_id')['user_id'].count().reset_index()
             median = item_gr['user_id'].median()
