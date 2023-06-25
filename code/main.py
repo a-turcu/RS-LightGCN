@@ -90,8 +90,8 @@ def output_csv_results(data_list, config):
 
 if __name__ == '__main__':
     # Load the arguments
-    # args = parse_args()
-    args = FakeArgs()
+    args = parse_args()
+    # args = FakeArgs()
 
     # Instantiate the config object
     config = Config(
