@@ -14,10 +14,6 @@ In additon, we investigate whether sampling strategies can benefit the model pre
 
 Graph Convolutional Networks (GCNs) have seen increased popularity in the context of collaborative filtering based Recommender Systems. LightGCN is a heavily simplified variant of GCN, specifically designed for recommendation tasks. While at the time of publishing, LightGCN was able to achieve state-of-the-art performance, there was still room for improvement in the sampling mechanism of the loss function. This paper replicates the results of the original LightGCN paper and tests the model on a new dataset to further demonstrate its robustness. Furthermore, additional sampling methods are developed and tested on all datasets, some of which show increased performance in terms of recall or catalog coverage.
 
-## Introduction
-
-In this work, we aim to simplify the design of GCN to make it more concise and appropriate for recommendation. We propose a new model named LightGCN,including only the most essential component in GCN—neighborhood aggregation—for collaborative filtering
-
 ## Enviroment Requirement
 
 `conda env create -f environment.yml`
