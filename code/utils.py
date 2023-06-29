@@ -40,7 +40,8 @@ class Sampling:
             self.sample_ext = False
 
         sample_map = {
-            'original': self.uniform_sample_original,
+            'original': self.uniform_sample_original_cpp,
+            'original_python': self.uniform_sample_original_python,
             'new_random': self.new_random_sample,
             'hard_neg_sample_lp': self.hard_neg_sample_lp,
             'hard_neg_sample_hp': self.hard_neg_sample_hp,
@@ -56,19 +57,13 @@ class Sampling:
         else:
             raise ValueError(f'Sampling method {sampling} is not supported!')
 
-    def uniform_sample_original(self, dataset: DataLoader, neg_ratio=1):
+    def uniform_sample_original_cpp(self, dataset: DataLoader, neg_ratio=1):
         """
         This method samples a user with a positive and a negative item (user, pos_item, neg_item).
         """
-        if self.sample_ext:
-            # Here we use a C++ library to do the sampling (0.1 seconds)
-            s = self.sampling.sample_negative(
-                dataset.n_user, dataset.m_item, dataset.train_data_size, dataset.all_pos, neg_ratio
-            )
-        else:
-            # Here we use a python to do the sampling (9.7 seconds)
-            s = self.uniform_sample_original_python(dataset)
-        return s
+        return self.sampling.sample_negative(
+            dataset.n_user, dataset.m_item, dataset.train_data_size, dataset.all_pos, neg_ratio
+        )
 
     @staticmethod
     def uniform_sample_original_python(dataset: DataLoader):
@@ -297,7 +292,7 @@ class Sampling:
         """
         This is the hard negative sampling method with low probability.
         """
-        if self.epoch < 5:
+        if self.epoch < 1:
             return self.new_random_sample(dataset)
         hard_neg_len = int(dataset.m_item * 0.03)
         sample_list = []
@@ -324,7 +319,7 @@ class Sampling:
         """
         This sampling method hard samples only half the time
         """
-        if self.epoch < 5:
+        if self.epoch < 1:
             return self.new_random_sample(dataset)
         hard_neg_len = int(dataset.m_item * 0.03)
         sample_list = []
@@ -429,11 +424,25 @@ def set_seed(seed):
 
 def get_file_name_base(config):
     if config.model_name == 'mf':
-        return f"mf-{config.dataset}-{config.latent_dim_rec}-{config.sampling}"
+        return f"mf-{config.data_loader}-{config.latent_dim_rec}-{config.sampling}"
     elif config.model_name == 'lgn':
-        return f"lgn-{config.dataset}-{config.lightGCN_n_layers}-{config.latent_dim_rec}-{config.sampling}"
+        return f"lgn-{config.data_loader}-{config.lightGCN_n_layers}-{config.latent_dim_rec}-{config.sampling}"
     else:
         raise NotImplementedError(f'getFileName does not have a path for the {config.model_name} model.')
+
+
+def prepare_dir(file_path):
+    """
+    This function is used to create the directories needed to output a path. If the directories already exist, the
+    function continues.
+    """
+    # Remove the file name to only keep the directory path.
+    dir_path = '/'.join(file_path.split('/')[:-1])
+    # Try to create the directory. Will have no effect if the directory already exists.
+    try:
+        os.makedirs(dir_path)
+    except FileExistsError:
+        pass
 
 
 def get_checkpoint_file_name(config):

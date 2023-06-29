@@ -199,10 +199,6 @@ class DataLoader(Dataset):
         self.users_D[self.users_D == 0.] = 1
         self.items_D = np.array(self.user_item_net.sum(axis=0)).squeeze()
         self.items_D[self.items_D == 0.] = 1.
-        self.constraint_mat = {
-            "beta_uD": torch.from_numpy(np.sqrt(self.users_D + 1) / self.users_D).reshape(-1),
-            "beta_iD": torch.from_numpy(1 / np.sqrt(self.items_D + 1)).reshape(-1)
-        }
 
     def get_df_stats(self):
         user_id_max = np.max((self.df_train['user_id'].max(), self.df_test['user_id'].max()))
@@ -349,34 +345,3 @@ class DataLoader(Dataset):
 
     def get_user_pos_items(self, users):
         return [self.user_item_net[user].nonzero()[1] for user in users]
-
-
-class LastfmLoader(DataLoader):
-    """
-    Dataset type for pytorch.
-    Includes graph information.
-    LastFM dataset.
-    """
-
-    def load_train_file(self):
-        """
-        This method load the training data file as a pandas dataframe. It handles the different file naming between
-        the lastfm dataset and the other datasets.
-        """
-        return self.load_data_file(self.data_path + '/data1.txt')
-
-    def load_test_file(self):
-        """
-        This method load the training data file as a pandas dataframe. It handles the different file naming between
-        the lastfm dataset and the other datasets.
-        """
-        return self.load_data_file(self.data_path + '/test1.txt')
-
-    @staticmethod
-    def load_data_file(file_path):
-        # Load the data and drop the last column
-        df = pd.read_table(join(file_path), header=None).drop(columns=2)
-        # Add columns names
-        df.columns = ['user_id', 'item_id']
-        # Return the dataframe
-        return df

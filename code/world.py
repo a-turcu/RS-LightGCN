@@ -33,7 +33,7 @@ class FakeArgs:
         self.a_fold = 100
         self.bpr_batch = 2048
         self.comment = 'lgn'
-        self.dataset = 'lastfm'  # 'lastfm'  # '' #'gowalla'  # 'yelp2018'  # 'amazon-book'
+        self.dataset = 'gowalla'  # 'lastfm'  # '' #'gowalla'  # 'yelp2018'  # 'amazon-book'
         self.decay = 0.0001
         self.dropout = 0
         self.epochs = 1000 # 1000
@@ -51,7 +51,7 @@ class FakeArgs:
         self.tensorboard = 1
         self.testbatch = 100
         self.topks = '[20]'
-        self.sampling = 'hard_neg_sample_hp'  # 'original'  # 'hard_neg'
+        self.sampling = 'hard_neg_sample_lp'  # 'original'  # 'hard_neg'
 
 
 class Config:

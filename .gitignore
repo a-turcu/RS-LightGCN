@@ -27,3 +27,5 @@ __pycache__/
 /code/plot-lgn-gowalla-3-64-stratified_original.png
 /code/plot-lgn-gowalla-3-64-stronger_weigthed_item_prob_sampling.png
 /code/plot-lgn-gowalla-3-64-weigthed_item_prob_sampling.png
+/data/yelp2018/s_pre_adj_mat.npz
+/data/amazon-book/s_pre_adj_mat.npz

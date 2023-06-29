@@ -184,8 +184,7 @@ class LightGCN(BasicModel):
     def get_users_rating(self, users):
         all_users, all_items = self.computer()
         users_emb = all_users[users.long()]
-        items_emb = all_items
-        rating = self.f(torch.matmul(users_emb, items_emb.t()))
+        rating = self.f(torch.matmul(users_emb, all_items.t()))
         return rating
     
     def get_embedding(self, users, pos_items, neg_items):

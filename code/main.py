@@ -12,7 +12,7 @@ import procedure
 from os.path import join
 from utils import print_config_info
 
-from dataloader import DataLoader, LastfmLoader
+from dataloader import DataLoader
 
 
 def run_training(config: Config):
@@ -22,10 +22,7 @@ def run_training(config: Config):
     utils.set_seed(config.seed)
     print(">>SEED:", config.seed)
     # Load the data
-    if config.dataset == 'lastfm':
-        dataset = LastfmLoader(config)
-    else:
-        dataset = DataLoader(config)
+    dataset = DataLoader(config)
     # Create a model string to model map
     models = {'mf': PureMf, 'lgn': LightGCN, 'ugn': UltraGcn}
     # Instantiate the recommender system model
