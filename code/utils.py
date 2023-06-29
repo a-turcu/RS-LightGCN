@@ -456,9 +456,9 @@ def get_file_name_base(config):
     Refactored code
     """
     if config.model_name == 'mf':
-        return f"mf-{config.data_loader}-{config.latent_dim_rec}-{config.sampling}"
+        return f"mf-{config.dataset}-{config.latent_dim_rec}-{config.sampling}"
     elif config.model_name == 'lgn':
-        return f"lgn-{config.data_loader}-{config.lightGCN_n_layers}-{config.latent_dim_rec}-{config.sampling}"
+        return f"lgn-{config.dataset}-{config.lightGCN_n_layers}-{config.latent_dim_rec}-{config.sampling}"
     else:
         raise NotImplementedError(f'getFileName does not have a path for the {config.model_name} model.')
 
