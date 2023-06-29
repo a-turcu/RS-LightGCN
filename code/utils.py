@@ -7,40 +7,402 @@ Xiangnan He et al. LightGCN: Simplifying and Powering Graph Convolution Network 
 '''
 import world
 import torch
-from torch import nn, optim
+from torch import optim
 import numpy as np
-from torch import log
-from dataloader import BasicDataset
-from time import time
-from model import LightGCN
+from dataloader import DataLoader
 from model import PairWiseModel
 from sklearn.metrics import roc_auc_score
-import random
 import os
-try:
-    from cppimport import imp_from_filepath
-    from os.path import join, dirname
-    path = join(dirname(__file__), "sources/sampling.cpp")
-    sampling = imp_from_filepath(path)
-    sampling.seed(world.seed)
-    sample_ext = True
-except:
-    world.cprint("Cpp extension not loaded")
-    sample_ext = False
+from cppimport import imp_from_filepath
+from os.path import join, dirname
+from pprint import pprint
 
 
-class BPRLoss:
-    def __init__(self,
-                 recmodel : PairWiseModel,
-                 config : dict):
-        self.model = recmodel
-        self.weight_decay = config['decay']
-        self.lr = config['lr']
-        self.opt = optim.Adam(recmodel.parameters(), lr=self.lr)
+class Sampling:
+    def __init__(self, seed, sampling):
+        self.top_ranked_items = None
+        self.epoch = None
+        self.pos_count = None
+        self.neg_count = None
+        self.m_item = None
+        self.weights_norm = None
+        try:
+            path = join(dirname(__file__), "sources/sampling.cpp")
+            self.sampling = imp_from_filepath(path)
+            self.sampling.seed(seed)
+            self.sample_ext = True
+        except Exception as e:
+            print(f'Exceptions "{e}" occurred.')
+            world.cprint("Cpp extension not loaded")
+            self.sampling = None
+            self.sample_ext = False
 
-    def stageOne(self, users, pos, neg):
+        sample_map = {
+            'original': self.uniform_sample_original_cpp,
+            'original_python': self.uniform_sample_original_python,
+            'new_random': self.new_random_sample,
+            'hard_neg_sample_lp': self.hard_neg_sample_lp,
+            'hard_neg_sample_hp': self.hard_neg_sample_hp,
+            'stratified_original': self.stratified_sample_original,
+            'stratified_new_random': self.stratified_random_sample,
+            'normalised_sample_original': self.normalised_sample_original,
+            'weigthed_item_prob_sampling': self.weigthed_item_prob_sampling,
+            'stronger_weigthed_item_prob_sampling': self.stronger_weigthed_item_prob_sampling,
+            'mixed': self.mixed,
+        }
+        if sampling in sample_map:
+            self.sample = sample_map[sampling]
+        else:
+            raise ValueError(f'Sampling method {sampling} is not supported!')
+
+    def uniform_sample_original_cpp(self, dataset: DataLoader, neg_ratio=1):
+        """
+        This method samples a user with a positive and a negative item (user, pos_item, neg_item).
+        """
+        return self.sampling.sample_negative(
+            dataset.n_user, dataset.m_item, dataset.train_data_size, dataset.all_pos, neg_ratio
+        )
+
+    @staticmethod
+    def uniform_sample_original_python(dataset: DataLoader):
+        """
+        The original implimentation of BPR Sampling in LightGCN
+        :return:
+            np.array
+        """
+        user_num = dataset.train_data_size
+        users = np.random.randint(0, dataset.n_user, user_num)
+        all_pos = dataset.all_pos
+        sample_list = []
+        for i, user in enumerate(users):
+            user_items = all_pos[user]
+            if not len(user_items):
+                continue
+            posindex = np.random.randint(0, len(user_items))
+            positem = user_items[posindex]
+            while True:
+                negitem = np.random.randint(0, dataset.m_item)
+                if negitem not in user_items:
+                    break
+            sample_list.append([user, positem, negitem])
+        return np.array(sample_list)
+
+    @staticmethod
+    def new_random_sample(dataset):
+        """
+        The new random sampling respects the original distribution of the positive item and simply selects randomly
+        the negative items.
+        """
+        sample_list = []
+        for user_id, item_id in zip(dataset.df_train['user_id'], dataset.df_train['item_id']):
+            while True:
+                neg_item = np.random.randint(0, dataset.m_item)
+                if neg_item not in dataset.all_pos_map[user_id]:
+                    break
+            sample_list.append([user_id, item_id, neg_item])
+        return np.array(sample_list)
+
+    @staticmethod
+    def stratified_random_sample(dataset):
+        """
+        This is a stratified random strategy, where both item selected should have a similar popularity.
+        """
+        sample_list = []
+        for user_id, item_id in zip(dataset.df_train['user_id'], dataset.df_train['item_id']):
+            strat_gr = dataset.item_id_to_strat_gr_map[item_id]
+            item_list_len = dataset.strat_gr_to_item_list_len[strat_gr]
+            while True:
+                neg_item_index = np.random.randint(0, item_list_len)
+                neg_item = dataset.strat_gr_to_item_list[strat_gr][neg_item_index]
+                if neg_item not in dataset.all_pos_map[user_id]:
+                    break
+            sample_list.append([user_id, item_id, neg_item])
+        return np.array(sample_list)
+
+    @staticmethod
+    def stratified_sample_original(dataset):
+        """
+        The original sampling strategy stratified by item popularity
+        """
+        sample_list = []
+        for user_id in dataset.df_train['user_id'].unique():
+            user_items = dataset.all_pos[user_id]
+            user_items_len = len(user_items)
+            for _ in range(dataset.mean_item_per_user):
+                pos_index = np.random.randint(0, user_items_len)
+                pos_item = user_items[pos_index]
+                strat_gr = dataset.item_id_to_strat_gr_map[pos_item]
+                item_list_len = dataset.strat_gr_to_item_list_len[strat_gr]
+                while True:
+                    neg_item_index = np.random.randint(0, item_list_len)
+                    neg_item = dataset.strat_gr_to_item_list[strat_gr][neg_item_index]
+                    if neg_item not in dataset.all_pos_map[user_id]:
+                        break
+                sample_list.append([user_id, pos_item, neg_item])
+        return np.array(sample_list)
+
+    def normalised_sample_original(self, dataset):
+        """
+        In this function, we try to "normalise" the number of items that are being randomly selected such that
+        there is a more equal number of items selected as positive and negative on each run.
+        """
+        if self.pos_count is None:
+            self.pos_count = {item_id: 0 for item_id in dataset.df_train['item_id'].unique()}
+            self.neg_count = self.pos_count.copy()
+        elif self.epoch > 10:
+            # Create a pool with the items that have been less selected as negatives.
+            median_neg_count = np.median([v for v in self.neg_count.values()])
+            neg_item_pool = [k for k, v in self.neg_count.items() if v <= median_neg_count]
+            neg_item_pool_len = len(neg_item_pool)
+
+            # Create a weight map for the pos item weighing.
+            median_pos_count = np.median([v for v in self.pos_count.values()])
+            pos_weight_map = {k: 2 if v <= median_pos_count else 1 for k, v in self.pos_count.items()}
+
+        sample_list = []
+        if self.epoch > 10:
+            for user_id in dataset.df_train['user_id'].unique():
+                # Retrieve the positive objects for the user
+                user_items_raw = dataset.all_pos[user_id].tolist()
+                # Create a list that contains the positive items that have a low count
+                items_with_low_pos_count = [i for i in dataset.all_pos[user_id] if pos_weight_map[i] == 2]
+                # Combine both list
+                user_items = user_items_raw + items_with_low_pos_count
+                user_items_len = len(user_items)
+                for i in range(dataset.mean_item_per_user):
+                    # Randomly select index
+                    pos_index = np.random.randint(0, user_items_len)
+                    pos_item = user_items[pos_index]
+                    # Break when we find a positive item
+                    while True:
+                        # We only sample for the items that were selected as negative less.
+                        neg_item = neg_item_pool[np.random.randint(0, neg_item_pool_len)]
+                        if neg_item not in user_items:
+                            break
+                    # Counting
+                    self.pos_count[pos_item] += 1
+                    self.neg_count[neg_item] += 1
+                    # Add sample
+                    sample_list.append([user_id, pos_item, neg_item])
+        else:
+            # Original random sampling
+            for user_id in dataset.df_train['user_id'].unique():
+                user_items = dataset.all_pos[user_id]
+                user_items_len = len(user_items)
+                for i in range(dataset.mean_item_per_user):
+                    pos_index = np.random.randint(0, user_items_len)
+                    pos_item = user_items[pos_index]
+                    while True:
+                        neg_item = np.random.randint(0, dataset.m_item)
+                        if neg_item not in user_items:
+                            break
+
+                    self.pos_count[pos_item] += 1
+                    self.neg_count[neg_item] += 1
+                    sample_list.append([user_id, pos_item, neg_item])
+        return np.array(sample_list)
+
+    def weigthed_item_prob_sampling(self, dataset):
+        """
+        In this function, we want to balance out the items by popularity. Meaning that if an item is popular, it
+        will be more likely to be chosen as a positive item. Hence, we add a bit more probably for less popular items
+        to be selected as positives.
+        """
+        arr_len = 2*dataset.mean_item_per_user
+        if self.weights_norm is None:
+            item_gr = dataset.df_train.groupby('item_id')['user_id'].count().reset_index()
+            median = item_gr['user_id'].median()
+            item_gr['weight'] = 1
+            cond = item_gr['user_id'] <= median
+            item_gr.loc[cond, 'weight'] = (median / item_gr.loc[cond, 'user_id'])**0.5
+            item_to_weight_dic = dict(zip(item_gr['item_id'], item_gr['weight']))
+
+            self.weights_norm = []
+            all_pos_adj = []
+            for i, item_list in enumerate(dataset.all_pos):
+                weights = [item_to_weight_dic[i] for i in item_list]
+                weights_sum = sum(weights)
+                weights_norm = [w / weights_sum for w in weights]
+                all_pos_adj.append(np.random.choice(item_list, size=arr_len, p=weights_norm))
+                self.weights_norm.append(weights_norm)
+        else:
+            all_pos_adj = []
+            for i, item_list in enumerate(dataset.all_pos):
+                all_pos_adj.append(np.random.choice(item_list, size=arr_len, p=self.weights_norm[i]))
+
+        sample_list = []
+        # Original random sampling
+        for user_id in dataset.df_train['user_id'].unique():
+            user_items = dataset.all_pos[user_id]
+            for i in range(dataset.mean_item_per_user):
+                pos_item = all_pos_adj[user_id][np.random.randint(0, arr_len)]
+                while True:
+                    neg_item = np.random.randint(0, dataset.m_item)
+                    if neg_item not in user_items:
+                        break
+                sample_list.append([user_id, pos_item, neg_item])
+        return np.array(sample_list)
+
+    def stronger_weigthed_item_prob_sampling(self, dataset):
+        """
+        In this function, we want to balance out the items by popularity. Meaning that if an item is popular, it
+        will be more likely to be chosen as a positive item. Hence, we add a bit more probably for less popular items
+        to be selected as positives.
+        """
+
+        arr_len = 2 * dataset.mean_item_per_user
+        if self.weights_norm is None:
+            item_gr = dataset.df_train.groupby('item_id')['user_id'].count().reset_index()
+            median = item_gr['user_id'].median()
+            item_gr['weight'] = 1
+            cond = item_gr['user_id'] <= median
+            item_gr.loc[cond, 'weight'] = (median / item_gr.loc[cond, 'user_id'])**0.5
+            item_gr['weight'] = (item_gr['weight'] - 1) * 2 + 1
+            item_to_weight_dic = dict(zip(item_gr['item_id'], item_gr['weight']))
+
+            self.weights_norm = []
+            all_pos_adj = []
+            for i, item_list in enumerate(dataset.all_pos):
+                weights = [item_to_weight_dic[i] for i in item_list]
+                weights_sum = sum(weights)
+                weights_norm = [w / weights_sum for w in weights]
+                all_pos_adj.append(np.random.choice(item_list, size=arr_len, p=weights_norm))
+                self.weights_norm.append(weights_norm)
+        else:
+            all_pos_adj = []
+            for i, item_list in enumerate(dataset.all_pos):
+                all_pos_adj.append(np.random.choice(item_list, size=arr_len, p=self.weights_norm[i]))
+
+        sample_list = []
+        # Original random sampling
+        for user_id in dataset.df_train['user_id'].unique():
+            user_items = dataset.all_pos[user_id]
+            for i in range(dataset.mean_item_per_user):
+                pos_item = all_pos_adj[user_id][np.random.randint(0, arr_len)]
+                while True:
+                    neg_item = np.random.randint(0, dataset.m_item)
+                    if neg_item not in user_items:
+                        break
+                sample_list.append([user_id, pos_item, neg_item])
+        return np.array(sample_list)
+
+    def hard_neg_sample_lp(self, dataset, hard_neg_prob=0.01):
+        """
+        This is the hard negative sampling method with low probability.
+        """
+        if self.epoch < 1:
+            return self.new_random_sample(dataset)
+        hard_neg_len = int(dataset.m_item * 0.03)
+        sample_list = []
+        # Original random sampling
+        for user_id in dataset.df_train['user_id'].unique():
+            user_items = dataset.all_pos[user_id]
+            arr_len = len(user_items)
+            for i in range(dataset.mean_item_per_user):
+                pos_item = user_items[np.random.randint(0, arr_len)]
+                if np.random.rand() < hard_neg_prob:
+                    # Hard neg sampling
+                    rand_int = np.random.randint(0, hard_neg_len)
+                    neg_item = int(self.top_ranked_items[user_id, rand_int])
+                else:
+                    # Random sampling
+                    while True:
+                        neg_item = np.random.randint(0, dataset.m_item)
+                        if neg_item not in dataset.all_pos_map[user_id]:
+                            break
+                sample_list.append([user_id, pos_item, neg_item])
+        return np.array(sample_list)
+
+    def hard_neg_sample_hp(self, dataset, hard_neg_prob=0.05):
+        """
+        This sampling method hard samples only half the time
+        """
+        if self.epoch < 1:
+            return self.new_random_sample(dataset)
+        hard_neg_len = int(dataset.m_item * 0.03)
+        sample_list = []
+        # Original random sampling
+        for user_id in dataset.df_train['user_id'].unique():
+            user_items = dataset.all_pos[user_id]
+            arr_len = len(user_items)
+            for i in range(dataset.mean_item_per_user):
+                pos_item = user_items[np.random.randint(0, arr_len)]
+                if np.random.rand() < hard_neg_prob:
+                    # Hard neg sampling
+                    rand_int = np.random.randint(0, hard_neg_len)
+                    neg_item = int(self.top_ranked_items[user_id, rand_int])
+                else:
+                    # Random sampling
+                    while True:
+                        neg_item = np.random.randint(0, dataset.m_item)
+                        if neg_item not in dataset.all_pos_map[user_id]:
+                            break
+                sample_list.append([user_id, pos_item, neg_item])
+        return np.array(sample_list)
+
+    def mixed(self, dataset, hard_neg_prob=0.05):
+        """
+        In this function, we want to balance out the items by popularity. Meaning that if an item is popular, it
+        will be more likely to be chosen as a positive item. Hence, we add a bit more probably for less popular items
+        to be selected as positives.
+        """
+        arr_len = 2*dataset.mean_item_per_user
+        hard_neg_len = int(dataset.m_item * 0.03)
+        if self.weights_norm is None:
+            item_gr = dataset.df_train.groupby('item_id')['user_id'].count().reset_index()
+            median = item_gr['user_id'].median()
+            item_gr['weight'] = 1
+            cond = item_gr['user_id'] <= median
+            item_gr.loc[cond, 'weight'] = (median / item_gr.loc[cond, 'user_id'])**0.5
+            item_to_weight_dic = dict(zip(item_gr['item_id'], item_gr['weight']))
+
+            self.weights_norm = []
+            all_pos_adj = []
+            for i, item_list in enumerate(dataset.all_pos):
+                weights = [item_to_weight_dic[i] for i in item_list]
+                weights_sum = sum(weights)
+                weights_norm = [w / weights_sum for w in weights]
+                all_pos_adj.append(np.random.choice(item_list, size=arr_len, p=weights_norm))
+                self.weights_norm.append(weights_norm)
+        else:
+            all_pos_adj = []
+            for i, item_list in enumerate(dataset.all_pos):
+                all_pos_adj.append(np.random.choice(item_list, size=arr_len, p=self.weights_norm[i]))
+
+        sample_list = []
+        # Original random sampling
+        for user_id in dataset.df_train['user_id'].unique():
+            user_items = dataset.all_pos[user_id]
+            for i in range(dataset.mean_item_per_user):
+                pos_item = all_pos_adj[user_id][np.random.randint(0, arr_len)]
+                if np.random.rand() < hard_neg_prob:
+                    # Hard neg sampling
+                    rand_int = np.random.randint(0, hard_neg_len)
+                    neg_item = int(self.top_ranked_items[user_id, rand_int])
+                else:
+                    # Random sampling
+                    while True:
+                        neg_item = np.random.randint(0, dataset.m_item)
+                        if neg_item not in dataset.all_pos_map[user_id]:
+                            break
+                sample_list.append([user_id, pos_item, neg_item])
+        return np.array(sample_list)
+
+
+class BrpLoss:
+    def __init__(
+            self,
+            rec_model: PairWiseModel,
+            config: world.Config
+    ):
+        self.model = rec_model
+        self.weight_decay = config.decay
+        self.lr = config.lr
+        self.opt = optim.Adam(rec_model.parameters(), lr=self.lr)
+
+    def stage_one(self, users, pos, neg):
         loss, reg_loss = self.model.bpr_loss(users, pos, neg)
-        reg_loss = reg_loss*self.weight_decay
+        reg_loss = reg_loss * self.weight_decay
         loss = loss + reg_loss
 
         self.opt.zero_grad()
@@ -50,54 +412,6 @@ class BPRLoss:
         return loss.cpu().item()
 
 
-def UniformSample_original(dataset, neg_ratio = 1):
-    dataset : BasicDataset
-    allPos = dataset.allPos
-    start = time()
-    if sample_ext:
-        S = sampling.sample_negative(dataset.n_users, dataset.m_items,
-                                     dataset.trainDataSize, allPos, neg_ratio)
-    else:
-        S = UniformSample_original_python(dataset)
-    return S
-
-def UniformSample_original_python(dataset):
-    """
-    the original impliment of BPR Sampling in LightGCN
-    :return:
-        np.array
-    """
-    total_start = time()
-    dataset : BasicDataset
-    user_num = dataset.trainDataSize
-    users = np.random.randint(0, dataset.n_users, user_num)
-    allPos = dataset.allPos
-    S = []
-    sample_time1 = 0.
-    sample_time2 = 0.
-    for i, user in enumerate(users):
-        start = time()
-        posForUser = allPos[user]
-        if len(posForUser) == 0:
-            continue
-        sample_time2 += time() - start
-        posindex = np.random.randint(0, len(posForUser))
-        positem = posForUser[posindex]
-        while True:
-            negitem = np.random.randint(0, dataset.m_items)
-            if negitem in posForUser:
-                continue
-            else:
-                break
-        S.append([user, positem, negitem])
-        end = time()
-        sample_time1 += end - start
-    total = time() - total_start
-    return np.array(S)
-
-# ===================end samplers==========================
-# =====================utils====================================
-
 def set_seed(seed):
     np.random.seed(seed)
     if torch.cuda.is_available():
@@ -105,29 +419,53 @@ def set_seed(seed):
         torch.cuda.manual_seed_all(seed)
     torch.manual_seed(seed)
 
-def getFileName():
-    if world.model_name == 'mf':
-        file = f"mf-{world.dataset}-{world.config['latent_dim_rec']}.pth.tar"
-    elif world.model_name == 'lgn':
-        file = f"lgn-{world.dataset}-{world.config['lightGCN_n_layers']}-{world.config['latent_dim_rec']}.pth.tar"
-    return os.path.join(world.FILE_PATH,file)
 
-def minibatch(*tensors, **kwargs):
-
-    batch_size = kwargs.get('batch_size', world.config['bpr_batch_size'])
-
-    if len(tensors) == 1:
-        tensor = tensors[0]
-        for i in range(0, len(tensor), batch_size):
-            yield tensor[i:i + batch_size]
+def get_file_name_base(config):
+    if config.model_name == 'mf':
+        return f"mf-{config.data_loader}-{config.latent_dim_rec}-{config.sampling}"
+    elif config.model_name == 'lgn':
+        return f"lgn-{config.data_loader}-{config.lightGCN_n_layers}-{config.latent_dim_rec}-{config.sampling}"
     else:
-        for i in range(0, len(tensors[0]), batch_size):
-            yield tuple(x[i:i + batch_size] for x in tensors)
+        raise NotImplementedError(f'getFileName does not have a path for the {config.model_name} model.')
 
 
-def shuffle(*arrays, **kwargs):
+def prepare_dir(file_path):
+    """
+    This function is used to create the directories needed to output a path. If the directories already exist, the
+    function continues.
+    """
+    # Remove the file name to only keep the directory path.
+    dir_path = '/'.join(file_path.split('/')[:-1])
+    # Try to create the directory. Will have no effect if the directory already exists.
+    try:
+        os.makedirs(dir_path)
+    except FileExistsError:
+        pass
 
-    require_indices = kwargs.get('indices', False)
+
+def get_checkpoint_file_name(config):
+    return os.path.join(config.checkpoint_path, get_file_name_base(config) + '.pth.tar')
+
+
+def get_results_file_name(config):
+    return os.path.join(config.results_path, get_file_name_base(config) + '.csv')
+
+
+def train_minibatch(users, posItems, negItems, batch_size):
+    for i in range(0, len(users), batch_size):
+        yield tuple(x[i:i + batch_size] for x in (users, posItems, negItems))
+
+
+def test_minibatch(users, batch_size):
+    for i in range(0, len(users), batch_size):
+        yield users[i:i + batch_size]
+
+
+def shuffle(arrays, require_indices=False):
+    """
+    Shuffles the order of the samples in the arrays list. The arrays need to have the same length. Supports a single
+    array in the arrays list.
+    """
 
     if len(set(len(x) for x in arrays)) != 1:
         raise ValueError('All inputs to shuffle must have '
@@ -147,9 +485,9 @@ def shuffle(*arrays, **kwargs):
         return result
 
 
-class timer:
+class Timer:
     """
-    Time context manager for code block
+    Time context manager for lgcn_code block
         with timer():
             do something
         timer.get()
@@ -160,8 +498,8 @@ class timer:
 
     @staticmethod
     def get():
-        if len(timer.TAPE) > 1:
-            return timer.TAPE.pop()
+        if len(Timer.TAPE) > 1:
+            return Timer.TAPE.pop()
         else:
             return -1
 
@@ -169,49 +507,49 @@ class timer:
     def dict(select_keys=None):
         hint = "|"
         if select_keys is None:
-            for key, value in timer.NAMED_TAPE.items():
+            for key, value in Timer.NAMED_TAPE.items():
                 hint = hint + f"{key}:{value:.2f}|"
         else:
             for key in select_keys:
-                value = timer.NAMED_TAPE[key]
+                value = Timer.NAMED_TAPE[key]
                 hint = hint + f"{key}:{value:.2f}|"
         return hint
 
     @staticmethod
     def zero(select_keys=None):
         if select_keys is None:
-            for key, value in timer.NAMED_TAPE.items():
-                timer.NAMED_TAPE[key] = 0
+            for key, value in Timer.NAMED_TAPE.items():
+                Timer.NAMED_TAPE[key] = 0
         else:
             for key in select_keys:
-                timer.NAMED_TAPE[key] = 0
+                Timer.NAMED_TAPE[key] = 0
 
     def __init__(self, tape=None, **kwargs):
         if kwargs.get('name'):
-            timer.NAMED_TAPE[kwargs['name']] = timer.NAMED_TAPE[
-                kwargs['name']] if timer.NAMED_TAPE.get(kwargs['name']) else 0.
+            Timer.NAMED_TAPE[kwargs['name']] = Timer.NAMED_TAPE[
+                kwargs['name']] if Timer.NAMED_TAPE.get(kwargs['name']) else 0.
             self.named = kwargs['name']
             if kwargs.get("group"):
                 #TODO: add group function
                 pass
         else:
             self.named = False
-            self.tape = tape or timer.TAPE
+            self.tape = tape or Timer.TAPE
 
     def __enter__(self):
-        self.start = timer.time()
+        self.start = Timer.time()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.named:
-            timer.NAMED_TAPE[self.named] += timer.time() - self.start
+            Timer.NAMED_TAPE[self.named] += Timer.time() - self.start
         else:
-            self.tape.append(timer.time() - self.start)
+            self.tape.append(Timer.time() - self.start)
 
 
 # ====================Metrics==============================
 # =========================================================
-def RecallPrecision_ATk(test_data, r, k):
+def recall_precision_at_k(test_data, r, k):
     """
     test_data should be a list? cause users may have different amount of pos items. shape (test_batch, k)
     pred_data : shape (test_batch, k) NOTE: pred_data should be pre-sorted
@@ -225,17 +563,24 @@ def RecallPrecision_ATk(test_data, r, k):
     return {'recall': recall, 'precision': precis}
 
 
-def MRRatK_r(r, k):
+def mrr_at_k(r, k):
     """
     Mean Reciprocal Rank
     """
+    # Only select the k first columns
     pred_data = r[:, :k]
-    scores = np.log2(1./np.arange(1, k+1))
-    pred_data = pred_data/scores
-    pred_data = pred_data.sum(1)
-    return np.sum(pred_data)
+    # Get the index of the first non-zero value (ie the first correct prediction)
+    first_corr_index = (pred_data != 0).argmax(axis=1)
+    # Initialise the mrr vector. By default, each user has a score of 0.
+    mrr = np.zeros(pred_data.shape[0])
+    # Only update the users that actually have at least one correct prediction
+    cond = (pred_data != 0).sum(1) != 0
+    # Update the mean reciprocal rank for each uses
+    mrr[cond] = (1 / (1 + first_corr_index))[cond]
+    return np.sum(mrr)
 
-def NDCGatK_r(test_data,r,k):
+
+def ndcg_at_k_r(test_data, r, k):
     """
     Normalized Discounted Cumulative Gain
     rel_i = 1 or 0, so 2^{rel_i} - 1 = 1 or 0
@@ -256,18 +601,19 @@ def NDCGatK_r(test_data,r,k):
     ndcg[np.isnan(ndcg)] = 0.
     return np.sum(ndcg)
 
-def AUC(all_item_scores, dataset, test_data):
+
+def get_auc_score(all_item_scores, dataset, test_data):
     """
         design for a single user
     """
-    dataset : BasicDataset
-    r_all = np.zeros((dataset.m_items, ))
+    r_all = np.zeros((dataset.m_item,))
     r_all[test_data] = 1
     r = r_all[all_item_scores >= 0]
     test_item_scores = all_item_scores[all_item_scores >= 0]
     return roc_auc_score(r, test_item_scores)
 
-def getLabel(test_data, pred_data):
+
+def get_label(test_data, pred_data):
     r = []
     for i in range(len(test_data)):
         groundTrue = test_data[i]
@@ -279,3 +625,21 @@ def getLabel(test_data, pred_data):
 
 # ====================end Metrics=============================
 # =========================================================
+
+
+def print_config_info(config):
+    attribute = [
+        'bpr_batch_size', 'latent_dim_rec', 'lightGCN_n_layers', 'dropout', 'keep_prob', 'a_fold',
+        'test_u_batch_size', 'multicore', 'lr', 'decay', 'pretrain', 'a_split', 'bigdata'
+    ]
+    config_dic = {a: getattr(config, a) for a in attribute}
+    print('===========config================')
+    pprint(config_dic)
+    print("cores for test:", config.cores)
+    print("comment:", config.comment)
+    print("tensorboard:", config.tensorboard)
+    print("LOAD:", config.load_bool)
+    print("Weight path:", config.checkpoint_path)
+    print("Test Topks:", config.topks)
+    print("using bpr loss")
+    print('===========end===================')

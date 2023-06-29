@@ -9,82 +9,97 @@ Xiangnan He et al. LightGCN: Simplifying and Powering Graph Convolution Network 
 import os
 from os.path import join
 import torch
-from enum import Enum
-from parse import parse_args
 import multiprocessing
+import sys
 
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
-args = parse_args()
+from parse import parse_args
 
 ROOT_PATH = os.path.dirname(os.path.dirname(__file__))
 CODE_PATH = join(ROOT_PATH, 'code')
 DATA_PATH = join(ROOT_PATH, 'data')
 BOARD_PATH = join(CODE_PATH, 'runs')
-FILE_PATH = join(CODE_PATH, 'checkpoints')
-import sys
+CKPT_PATH = join(CODE_PATH, 'checkpoints')
+RESULTS_PATH = join(CODE_PATH, 'results')
+
 sys.path.append(join(CODE_PATH, 'sources'))
 
-
-if not os.path.exists(FILE_PATH):
-    os.makedirs(FILE_PATH, exist_ok=True)
-
-
-config = {}
-all_dataset = ['lastfm', 'gowalla', 'yelp2018', 'amazon-book']
-all_models  = ['mf', 'lgn']
-# config['batch_size'] = 4096
-config['bpr_batch_size'] = args.bpr_batch
-config['latent_dim_rec'] = args.recdim
-config['lightGCN_n_layers']= args.layer
-config['dropout'] = args.dropout
-config['keep_prob']  = args.keepprob
-config['A_n_fold'] = args.a_fold
-config['test_u_batch_size'] = args.testbatch
-config['multicore'] = args.multicore
-config['lr'] = args.lr
-config['decay'] = args.decay
-config['pretrain'] = args.pretrain
-config['A_split'] = False
-config['bigdata'] = False
-
-GPU = torch.cuda.is_available()
-device = torch.device('cuda' if GPU else "cpu")
-CORES = multiprocessing.cpu_count() // 2
-seed = args.seed
-
-dataset = args.dataset
-model_name = args.model
-if dataset not in all_dataset:
-    raise NotImplementedError(f"Haven't supported {dataset} yet!, try {all_dataset}")
-if model_name not in all_models:
-    raise NotImplementedError(f"Haven't supported {model_name} yet!, try {all_models}")
+for f in (CKPT_PATH, RESULTS_PATH):
+    if not os.path.exists(f):
+        os.makedirs(f, exist_ok=True)
 
 
+class FakeArgs:
+    def __init__(self):
+        self.a_fold = 100
+        self.bpr_batch = 2048
+        self.comment = 'lgn'
+        self.dataset = 'gowalla'  # 'lastfm'  # '' #'gowalla'  # 'yelp2018'  # 'amazon-book'
+        self.decay = 0.0001
+        self.dropout = 0
+        self.epochs = 1000 # 1000
+        self.keepprob = 0.6
+        self.layer = 3
+        self.load = 0
+        self.lr = 0.001
+        self.model = 'lgn'
+        self.multicore = 0
+        self.checkpoint_path = './checkpoints'
+        self.results_path = './results/'
+        self.pretrain = 0
+        self.recdim = 64
+        self.seed = 2020
+        self.tensorboard = 1
+        self.testbatch = 100
+        self.topks = '[20]'
+        self.sampling = 'hard_neg_sample_lp'  # 'original'  # 'hard_neg'
 
 
-TRAIN_epochs = args.epochs
-LOAD = args.load
-PATH = args.path
-topks = eval(args.topks)
-tensorboard = args.tensorboard
-comment = args.comment
-# let pandas shut up
-from warnings import simplefilter
-simplefilter(action="ignore", category=FutureWarning)
+class Config:
+    def __init__(
+            self, dataset, model, bpr_batch, recdim, layer, dropout, keepprob, a_fold, testbatch, multicore, lr=0.001,
+            decay=0.0001, pretrain=0, seed=2020, epochs=1000, load=0, checkpoint_path='./checkpoints', results_path='./results/',
+            topks='[20]', tensorboard=1, comment='lgn', sampling='original'
+    ):
+        import subprocess
+
+        self.bpr_batch_size = bpr_batch
+        self.latent_dim_rec = recdim
+        self.lightGCN_n_layers = layer
+        self.dropout = dropout
+        self.keep_prob = keepprob
+        self.a_fold= a_fold
+        self.test_u_batch_size = testbatch
+        self.multicore = multicore
+        self.lr = lr
+        self.decay = decay
+        self.pretrain = pretrain
+        self.seed = seed
+        self.dataset = dataset
+        self.model_name = model
+        self.sampling = sampling
+        self.checkpoint_path = checkpoint_path
+        self.results_path = results_path
+        self.board_path = BOARD_PATH
+        self.a_split = False
+        self.bigdata = False
+        self.gpu = torch.cuda.is_available()
+        self.device = torch.device('cuda' if self.gpu else "cpu")
+        self.cores = multiprocessing.cpu_count() // 2
+        self.all_dataset = ['lastfm', 'gowalla', 'yelp2018', 'amazon-book']
+        self.all_models = ['mf', 'lgn', 'ugn']
+        if self.dataset not in self.all_dataset:
+            raise NotImplementedError(f"Haven't supported {self.dataset} yet!, try {self.all_dataset}")
+        if self.model_name not in self.all_models:
+            raise NotImplementedError(f"Haven't supported {self.model_name} yet!, try {self.all_models}")
+        self.train_epochs = epochs
+        self.load_bool = load
+        self.topks = eval(topks)
+        self.tensorboard = tensorboard
+        self.comment = comment
+        # Silence pandas
+        from warnings import simplefilter
+        simplefilter(action="ignore", category=FutureWarning)
 
 
-
-def cprint(words : str):
+def cprint(words: str):
     print(f"\033[0;30;43m{words}\033[0m")
-
-logo = r"""
-██╗      ██████╗ ███╗   ██╗
-██║     ██╔════╝ ████╗  ██║
-██║     ██║  ███╗██╔██╗ ██║
-██║     ██║   ██║██║╚██╗██║
-███████╗╚██████╔╝██║ ╚████║
-╚══════╝ ╚═════╝ ╚═╝  ╚═══╝
-"""
-# font: ANSI Shadow
-# refer to http://patorjk.com/software/taag/#p=display&f=ANSI%20Shadow&t=Sampling
-# print(logo)

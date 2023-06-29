@@ -1,0 +1,14 @@
+name: lgcn
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - pytorch-gpu
+  - pandas
+  - tqdm
+  - scikit-learn
+  - tensorboardx
+  - jupyter
+  - pybind11
+
