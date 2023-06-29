@@ -15,9 +15,7 @@ from sklearn.metrics import roc_auc_score
 import os
 from cppimport import imp_from_filepath
 from os.path import join, dirname
-import dataloader
 from pprint import pprint
-import pandas as pd
 
 
 class Sampling:

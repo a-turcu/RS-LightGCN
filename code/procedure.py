@@ -16,6 +16,9 @@ import multiprocessing
 
 
 class ProcedureManager:
+    """
+    The ProcedureManager handles the training and testing process.
+    """
     def __init__(self, config):
         self.sampler_helper = utils.Sampling(config.seed, config.sampling)
         self.device = config.device
@@ -27,36 +30,56 @@ class ProcedureManager:
         self.top_ranked_items = None
 
     def bpr_train_original(self, dataset, model, loss, epoch, w=None, config=None):
+        """
+        Train method.
+        """
+        # Set the model to train mode
         model.train()
+        # Perform the sampling
         with Timer(name="Sample"):
             # Some sampling
             self.sampler_helper.epoch = epoch
             s = self.sampler_helper.sample(dataset)
+        # Place the users, positive and negative items on the GPU.
         users = torch.Tensor(s[:, 0]).long()
         pos_items = torch.Tensor(s[:, 1]).long()
         neg_items = torch.Tensor(s[:, 2]).long()
-
         users = users.to(config.device)
         pos_items = pos_items.to(config.device)
         neg_items = neg_items.to(config.device)
+
+        # Shuffle the dataset.
         users, pos_items, neg_items = utils.shuffle((users, pos_items, neg_items))
+
+        # Loop through the dataset by batch.
         total_batch = len(users) // config.bpr_batch_size + 1
         aver_loss = 0.
         enumerator = enumerate(utils.train_minibatch(users, pos_items, neg_items, batch_size=self.bpr_batch_size))
         for batch_i, (batch_users, batch_pos, batch_neg) in enumerator:
+            # Get the loss for the batch users and items.
             cri = loss.stage_one(batch_users, batch_pos, batch_neg)
+            # Add the loss
             aver_loss += cri
+            # Tensorboard update
             if config.tensorboard:
                 w.add_scalar(f'BPRLoss/BPR', cri, epoch * int(len(users) / self.bpr_batch_size) + batch_i)
+        # Derive average loss
         aver_loss = aver_loss / total_batch
+        # Time information
         time_info = Timer.dict()
         Timer.zero()
         return f"loss{aver_loss:.3f}-{time_info}"
 
     def test_one_batch(self, data_batch):
+        """
+        Test method for a single data batch.
+        """
+        # Extract the data batch
         sorted_items = data_batch[0].numpy()
         groundTrue = data_batch[1]
+        # Obtain the labels for batch
         r = utils.get_label(groundTrue, sorted_items)
+        # Derive metric values
         pre, recall, ndcg, mrr = [], [], [], []
         for k in self.topks:
             ret = utils.recall_precision_at_k(groundTrue, r, k)
@@ -64,6 +87,7 @@ class ProcedureManager:
             recall.append(ret['recall'])
             ndcg.append(utils.ndcg_at_k_r(groundTrue, r, k))
             mrr.append(utils.mrr_at_k(r, k))
+        # Return dictionary with derived metrics
         return {
             'recall': np.array(recall),
             'precision': np.array(pre),
@@ -72,11 +96,17 @@ class ProcedureManager:
         }
 
     def test(self, dataset, model, epoch, w=None, multicore=0):
+        """
+        Test method.
+        """
+        # Set the test batch size
         u_batch_size = self.test_u_batch_size
-        # eval mode with no dropout
+        # Set the model to eval mode
         model = model.eval()
+        # Find the maximum top k value
         max_K = max(self.topks)
         pool = None
+        # Multiprocessing
         if multicore == 1:
             cores = multiprocessing.cpu_count() // 2
             pool = multiprocessing.Pool(cores)
@@ -86,34 +116,41 @@ class ProcedureManager:
             'ndcg': np.zeros(len(self.topks)),
             'mrr': np.zeros(len(self.topks))
         }
+        # No gradient update during inference.
         with torch.no_grad():
+            # Get the list of unique user ids.
             users = list(dataset.test_dict.keys())
             try:
                 assert u_batch_size <= len(users) / 10
             except AssertionError:
                 print(f"test_u_batch_size is too big for this dataset, try a small one {len(users) // 10}")
+            # Create empty lists to stored information
             users_list = []
             rating_list = []
             groundTrue_list = []
             top_ranked_list = []
-            # auc_record = []
-            # ratings = []
+            # Loop through the test batches
             total_batch = len(users) // u_batch_size + 1
             for batch_users in utils.test_minibatch(users, batch_size=u_batch_size):
+                # Get the positive items by users in the training set.
                 all_pos = dataset.get_user_pos_items(batch_users)
+                # Get the positive items by users in the test set.
                 ground_true = [dataset.test_dict[u] for u in batch_users]
+                # Add the batch to the GPU
                 batch_users_gpu = torch.Tensor(batch_users).long()
                 batch_users_gpu = batch_users_gpu.to(self.device)
-
+                # Get the item ratings for the batch of users
                 rating = model.get_users_rating(batch_users_gpu)
-                #rating = rating.cpu()
+                # Exclude the positive from the training set.
                 exclude_index = []
                 exclude_items = []
                 for range_i, items in enumerate(all_pos):
                     exclude_index.extend([range_i] * len(items))
                     exclude_items.extend(items)
                 rating[exclude_index, exclude_items] = -(1<<10)
+                # Find the topk items
                 rating_K = torch.topk(rating, k=max_K)[1]
+
                 top_ranked_list.append(torch.topk(rating, k=1000)[1])
 
                 rating = rating.cpu().numpy()

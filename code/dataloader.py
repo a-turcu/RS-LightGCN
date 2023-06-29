@@ -14,12 +14,14 @@ import pandas as pd
 from torch.utils.data import Dataset
 from scipy.sparse import csr_matrix
 import scipy.sparse as sp
-import world
 from world import cprint
 from time import time
 
 
 class DataLoader(Dataset):
+    """
+    This class handles the data loading and preprocessing.
+    """
     def __init__(self, config, minimal_bool=False):
         super().__init__()
         # train or test
@@ -68,22 +70,15 @@ class DataLoader(Dataset):
 
     def load_train_file(self):
         """
-        This method load the training data file as a pandas dataframe. It handles the different file naming between
-        the lastfm dataset and the other datasets.
+        This method load the training data file as a pandas dataframe.
         """
         return self.load_data_file(self.data_path + '/train.txt')
 
     def load_test_file(self):
+        """
+        This method load the test data file as a pandas dataframe.
+        """
         return self.load_data_file(self.data_path + '/test.txt')
-
-    @staticmethod
-    def load_lastfm_file(file_path):
-        # Load the data and drop the last column
-        df = pd.read_table(join(file_path), header=None).drop(columns=2)
-        # Add columns names
-        df.columns = ['user_id', 'item_id']
-        # Return the dataframe
-        return df
 
     def data_preprocessing(self, train_data, test_data):
         """
@@ -182,6 +177,10 @@ class DataLoader(Dataset):
         self.mean_item_per_user = int(self.df_train.shape[0] / self.df_train.user_id.unique().shape[0])
 
     def get_sorted_list_map(self, set_map):
+        """
+        This method receives a dictionary that contains unsorted lists as values and returns a dictionary with sorted
+        lists as values.
+        """
         sorted_list_map = {}
         for k, v in set_map.items():
             item_list = list(v)
@@ -190,6 +189,9 @@ class DataLoader(Dataset):
         return sorted_list_map
 
     def graph_definition(self):
+        """
+        This function creates the spares matrix
+        """
         # Bipartite graph
         self.user_item_net = csr_matrix(
             (np.ones(len(self.df_train['user_id'])), (self.df_train['user_id'], self.df_train['item_id'])),
