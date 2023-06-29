@@ -52,5 +52,6 @@ run LightGCN on **Gowalla** dataset:
 | world.py                       | Minor changes                                                       |
 | data                           | New dataset LastFM added                                            |
 | results                        | Contains the test set performance                                   |
+| checkpoints                    | Contains the best checkpoint from each model run                    |
 
 In addition, detailed comments were added to the entire repository.
