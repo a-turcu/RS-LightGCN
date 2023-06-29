@@ -7,6 +7,15 @@ Xiangnan He et al. LightGCN: Simplifying and Powering Graph Convolution Network 
 Design Dataset here
 Every dataset's index has to start at 0
 """
+"""
+Refactored by Ryan Amaudruz on June 1, 2023
+
+Combined the 3 classes Loader, LastFM, BasicDataset into a single unified DataLoader class.
+- Removed boiler plate code
+- Implemenation of Pandas to speed up data processing time
+- Made the code more generic and modular
+We also remove a lot of boiler plate code.
+"""
 from os.path import join
 import torch
 import numpy as np
@@ -71,12 +80,16 @@ class DataLoader(Dataset):
     def load_train_file(self):
         """
         This method load the training data file as a pandas dataframe.
+
+        New method
         """
         return self.load_data_file(self.data_path + '/train.txt')
 
     def load_test_file(self):
         """
         This method load the test data file as a pandas dataframe.
+
+        New method
         """
         return self.load_data_file(self.data_path + '/test.txt')
 
@@ -85,6 +98,8 @@ class DataLoader(Dataset):
         This method ensures that the train and test sets have the same user and item ids. It prints out information
         relating to the changes made.
         In practice, only the lastfm dataset requires this type of cleaning.
+
+        New method based on original code
         """
         total_train_dropped = 0
         total_test_dropped = 0
@@ -125,6 +140,8 @@ class DataLoader(Dataset):
         """
         This method ensures that the elements in the col_to_clean column present in the test set are present in the
         training. It then ensures that the id have a sequential ordering that starts at index 0.
+
+        New method
         """
         common_ids = list(set(train_data[col_to_clean]))
         common_ids.sort()
@@ -147,6 +164,11 @@ class DataLoader(Dataset):
         )
 
     def pre_calculation(self):
+        """
+        This performs calculations on the dataset that can be used for analysis or during runtime.
+
+        New method
+        """
         self.all_pos = self.get_user_pos_items(list(range(self.n_user)))
         self.all_pos_map = {user_id: set(pos_list) for user_id, pos_list in enumerate(self.all_pos)}
         self.all_items = set(self.df_train['item_id'].unique().tolist())
@@ -180,6 +202,8 @@ class DataLoader(Dataset):
         """
         This method receives a dictionary that contains unsorted lists as values and returns a dictionary with sorted
         lists as values.
+
+        New method
         """
         sorted_list_map = {}
         for k, v in set_map.items():
@@ -190,7 +214,9 @@ class DataLoader(Dataset):
 
     def graph_definition(self):
         """
-        This function creates the spares matrix
+        This method creates the spares matrix.
+
+        Original code
         """
         # Bipartite graph
         self.user_item_net = csr_matrix(
@@ -203,6 +229,11 @@ class DataLoader(Dataset):
         self.items_D[self.items_D == 0.] = 1.
 
     def get_df_stats(self):
+        """
+        This method gets the training set statistics.
+
+        Orginal + new code
+        """
         user_id_max = np.max((self.df_train['user_id'].max(), self.df_test['user_id'].max()))
         item_id_max = np.max((self.df_train['item_id'].max(), self.df_test['item_id'].max()))
         self.all_user = set(self.df_train['user_id']) | set(self.df_test['user_id'])
@@ -213,6 +244,11 @@ class DataLoader(Dataset):
         self.test_data_size = self.df_test.shape[0]
 
     def print_dataset_info(self, config):
+        """
+        Print dataset information.
+
+        Original code
+        """
         print(f"{self.train_data_size} interactions for training")
         print(f"{self.test_data_size} interactions for testing")
         sparsity = (self.train_data_size + self.test_data_size) / self.n_user / self.m_item
@@ -227,6 +263,8 @@ class DataLoader(Dataset):
         data_unique_users contains the user_ids in a list.
         data_user, data_item are lists that contain all the user_id item pairs.
         data_size is the length of the data_user, data_item lists.
+
+        New method
         """
         with open(data_file) as f:
             # Loop through the lines
@@ -243,24 +281,10 @@ class DataLoader(Dataset):
                     })
         return pd.DataFrame(data_list)
 
-    def create_dataset_tensors(self, user_item_map):
-        # Create list to store the unique users, and the user item pairs.
-        data_unique_users, data_item, data_user = [], [], []
-        # Loop through the data file lines
-        for user_id, user_items in user_item_map.items():
-            # Store the user id
-            data_unique_users.append(user_id)
-            # Add extend the user list with the user id for each item
-            data_user.extend([user_id] * len(user_items))
-            # Add the items to the item list
-            data_item.extend(user_items)
-            # Track the max item id
-            self.m_item = max(self.m_item, max(user_items))
-            # Track the max user id
-            self.n_user = max(self.n_user, user_id)
-        return np.array(data_unique_users), np.array(data_user), np.array(data_item)
-
     def _split_a_hat(self, a_hat):
+        """
+        Original code. Not used.
+        """
         A_fold = []
         fold_len = (self.n_user + self.m_item) // self.folds
         for i_fold in range(self.folds):
@@ -273,6 +297,9 @@ class DataLoader(Dataset):
         return A_fold
 
     def _convert_sp_mat_to_sp_tensor(self, X):
+        """
+        Original code. Not used.
+        """
         coo = X.tocoo().astype(np.float32)
         row = torch.Tensor(coo.row).long()
         col = torch.Tensor(coo.col).long()
@@ -284,6 +311,8 @@ class DataLoader(Dataset):
         """
         This method creates a sparse matrix of size (n_user + n_item) x (n_user + n_item).
         This matrix is normalised and symmetric.
+
+        Original code
         """
         print("loading adjacency matrix")
         if self.graph is None:
@@ -323,8 +352,9 @@ class DataLoader(Dataset):
 
     def __build_test(self):
         """
-        return:
-            dict: {user: [items]}
+        Builds test
+
+        Original code
         """
         test_data = {}
         for _, row in self.df_test.iterrows():
@@ -334,16 +364,10 @@ class DataLoader(Dataset):
                 test_data[row.user_id] = [row.item_id]
         return test_data
 
-    def get_user_item_feedback(self, users, items):
-        """
-        users:
-            shape [-1]
-        items:
-            shape [-1]
-        return:
-            feedback [-1]
-        """
-        return np.array(self.user_item_net[users, items]).astype('uint8').reshape((-1,))
-
     def get_user_pos_items(self, users):
+        """
+        Gets the positive items from the train set for each user as return it as a list of list.
+
+        Original code
+        """
         return [self.user_item_net[user].nonzero()[1] for user in users]

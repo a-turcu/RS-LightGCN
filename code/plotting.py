@@ -19,6 +19,11 @@ except FileNotFoundError:
 
 
 def get_config(dataset):
+    """
+    This function receives a dataset string and prepares a config object that stores all the config parameters.
+
+    New function
+    """
     # def run_analysis_and_plot(dataset):
     # Instantiate the arguments for the config file
     args = FakeArgs()
@@ -35,6 +40,9 @@ def get_config(dataset):
 
 
 def get_test_results(config, data_loader, file_path):
+    """
+    New function based on original code
+    """
     # Instantiate the recommender system model
     rec_model = LightGCN(config, data_loader)
 
@@ -107,6 +115,14 @@ def get_test_results(config, data_loader, file_path):
 
 
 def count_tp_fn_fp(ground_truth_list, new_rating_list):
+    """
+    Counts the true positive, false positive and fase negative items for each user.
+
+    ground_truth_list and new_rating_list are two lists that have the same length as
+    the number of users and the users have for id the index of the list.
+
+    New function
+    """
     # Create a list to store each data piece
     data_list = []
     # For each user with their respective predicted items and ground truth
@@ -135,7 +151,11 @@ def count_tp_fn_fp(ground_truth_list, new_rating_list):
 
 
 def user_centric_analysis(df, user_to_item_count_map):
+    """
+    Analysing the results from the user's perspective.
 
+    New function
+    """
     # Grouped df by user id
     user_gr = df.groupby(['user_id', 'pred_typ'])['item_id'].count().reset_index()
     user_pivot = user_gr.pivot(index='user_id', columns='pred_typ', values='item_id').reset_index().fillna(0)
@@ -162,6 +182,11 @@ def user_centric_analysis(df, user_to_item_count_map):
 
 
 def item_centric_analysis(df, item_to_user_count_map):
+    """
+    Analysing the results from the item's perspective.
+
+    New function
+    """
     # Grouped df by item id
     item_gr = df.groupby(['item_id', 'pred_typ'])['user_id'].count().reset_index()
     item_pivot = item_gr.pivot(index='item_id', columns='pred_typ', values='user_id').reset_index().fillna(0)
@@ -187,11 +212,12 @@ def item_centric_analysis(df, item_to_user_count_map):
     return item_pivot_gr
 
 
-def user_item_centric_analysis():
-    pass
-
-
 def create_item_centric_plot(df, task='save_fig'):
+    """
+    Function to plot the model outcome by item popularity.
+
+    New function
+    """
     # Rename the user count column for the plot
     user_count_gr_rename = {
         'less_10': 'Less than 10',

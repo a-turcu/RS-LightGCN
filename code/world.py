@@ -12,8 +12,6 @@ import torch
 import multiprocessing
 import sys
 
-from parse import parse_args
-
 ROOT_PATH = os.path.dirname(os.path.dirname(__file__))
 CODE_PATH = join(ROOT_PATH, 'code')
 DATA_PATH = join(ROOT_PATH, 'data')
@@ -29,6 +27,9 @@ for f in (CKPT_PATH, RESULTS_PATH):
 
 
 class FakeArgs:
+    """
+    New code. Fake argument class such that code can be run in IDE.
+    """
     def __init__(self):
         self.a_fold = 100
         self.bpr_batch = 2048
@@ -55,6 +56,9 @@ class FakeArgs:
 
 
 class Config:
+    """
+    Refactored code.
+    """
     def __init__(
             self, dataset, model, bpr_batch, recdim, layer, dropout, keepprob, a_fold, testbatch, multicore, lr=0.001,
             decay=0.0001, pretrain=0, seed=2020, epochs=1000, load=0, checkpoint_path='./checkpoints', results_path='./results/',
@@ -102,4 +106,7 @@ class Config:
 
 
 def cprint(words: str):
+    """
+    Original code
+    """
     print(f"\033[0;30;43m{words}\033[0m")

@@ -20,6 +20,11 @@ from pprint import pprint
 
 class Sampling:
     def __init__(self, seed, sampling):
+        """
+        The sampling class handles all the sampling functionality.
+
+        Old and new code
+        """
         self.top_ranked_items = None
         self.epoch = None
         self.pos_count = None
@@ -58,6 +63,8 @@ class Sampling:
     def uniform_sample_original_cpp(self, dataset: DataLoader, neg_ratio=1):
         """
         This method samples a user with a positive and a negative item (user, pos_item, neg_item).
+
+        This method is new. However it calls a CPP script that belongs to the original code.
         """
         return self.sampling.sample_negative(
             dataset.n_user, dataset.m_item, dataset.train_data_size, dataset.all_pos, neg_ratio
@@ -67,8 +74,8 @@ class Sampling:
     def uniform_sample_original_python(dataset: DataLoader):
         """
         The original implimentation of BPR Sampling in LightGCN
-        :return:
-            np.array
+
+        Original code
         """
         user_num = dataset.train_data_size
         users = np.random.randint(0, dataset.n_user, user_num)
@@ -92,6 +99,8 @@ class Sampling:
         """
         The new random sampling respects the original distribution of the positive item and simply selects randomly
         the negative items.
+
+        New method
         """
         sample_list = []
         for user_id, item_id in zip(dataset.df_train['user_id'], dataset.df_train['item_id']):
@@ -106,6 +115,8 @@ class Sampling:
     def stratified_random_sample(dataset):
         """
         This is a stratified random strategy, where both item selected should have a similar popularity.
+
+        New method
         """
         sample_list = []
         for user_id, item_id in zip(dataset.df_train['user_id'], dataset.df_train['item_id']):
@@ -123,6 +134,8 @@ class Sampling:
     def stratified_sample_original(dataset):
         """
         The original sampling strategy stratified by item popularity
+
+        New method
         """
         sample_list = []
         for user_id in dataset.df_train['user_id'].unique():
@@ -145,6 +158,8 @@ class Sampling:
         """
         In this function, we try to "normalise" the number of items that are being randomly selected such that
         there is a more equal number of items selected as positive and negative on each run.
+
+        New method
         """
         if self.pos_count is None:
             self.pos_count = {item_id: 0 for item_id in dataset.df_train['item_id'].unique()}
@@ -207,6 +222,8 @@ class Sampling:
         In this function, we want to balance out the items by popularity. Meaning that if an item is popular, it
         will be more likely to be chosen as a positive item. Hence, we add a bit more probably for less popular items
         to be selected as positives.
+
+        New method
         """
         arr_len = 2*dataset.mean_item_per_user
         if self.weights_norm is None:
@@ -248,6 +265,8 @@ class Sampling:
         In this function, we want to balance out the items by popularity. Meaning that if an item is popular, it
         will be more likely to be chosen as a positive item. Hence, we add a bit more probably for less popular items
         to be selected as positives.
+
+        New method
         """
 
         arr_len = 2 * dataset.mean_item_per_user
@@ -289,6 +308,8 @@ class Sampling:
     def hard_neg_sample_lp(self, dataset, hard_neg_prob=0.01):
         """
         This is the hard negative sampling method with low probability.
+
+        New method
         """
         if self.epoch < 1:
             return self.new_random_sample(dataset)
@@ -316,6 +337,8 @@ class Sampling:
     def hard_neg_sample_hp(self, dataset, hard_neg_prob=0.05):
         """
         This sampling method hard samples only half the time
+
+        New method
         """
         if self.epoch < 1:
             return self.new_random_sample(dataset)
@@ -345,6 +368,8 @@ class Sampling:
         In this function, we want to balance out the items by popularity. Meaning that if an item is popular, it
         will be more likely to be chosen as a positive item. Hence, we add a bit more probably for less popular items
         to be selected as positives.
+
+        New method
         """
         arr_len = 2*dataset.mean_item_per_user
         hard_neg_len = int(dataset.m_item * 0.03)
@@ -390,6 +415,9 @@ class Sampling:
 
 
 class BrpLoss:
+    """
+    Original code
+    """
     def __init__(
             self,
             rec_model: PairWiseModel,
@@ -413,6 +441,9 @@ class BrpLoss:
 
 
 def set_seed(seed):
+    """
+    Original code
+    """
     np.random.seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed(seed)
@@ -421,6 +452,9 @@ def set_seed(seed):
 
 
 def get_file_name_base(config):
+    """
+    Refactored code
+    """
     if config.model_name == 'mf':
         return f"mf-{config.data_loader}-{config.latent_dim_rec}-{config.sampling}"
     elif config.model_name == 'lgn':
@@ -433,6 +467,8 @@ def prepare_dir(file_path):
     """
     This function is used to create the directories needed to output a path. If the directories already exist, the
     function continues.
+
+    New function
     """
     # Remove the file name to only keep the directory path.
     dir_path = '/'.join(file_path.split('/')[:-1])
@@ -444,19 +480,31 @@ def prepare_dir(file_path):
 
 
 def get_checkpoint_file_name(config):
+    """
+    New function
+    """
     return os.path.join(config.checkpoint_path, get_file_name_base(config) + '.pth.tar')
 
 
 def get_results_file_name(config):
+    """
+    New function
+    """
     return os.path.join(config.results_path, get_file_name_base(config) + '.csv')
 
 
 def train_minibatch(users, posItems, negItems, batch_size):
+    """
+    Original code
+    """
     for i in range(0, len(users), batch_size):
         yield tuple(x[i:i + batch_size] for x in (users, posItems, negItems))
 
 
 def test_minibatch(users, batch_size):
+    """
+    Original code
+    """
     for i in range(0, len(users), batch_size):
         yield users[i:i + batch_size]
 
@@ -465,6 +513,8 @@ def shuffle(arrays, require_indices=False):
     """
     Shuffles the order of the samples in the arrays list. The arrays need to have the same length. Supports a single
     array in the arrays list.
+
+    Original code
     """
 
     if len(set(len(x) for x in arrays)) != 1:
@@ -491,6 +541,8 @@ class Timer:
         with timer():
             do something
         timer.get()
+
+    Original code
     """
     from time import time
     TAPE = [-1]  # global time record
@@ -554,6 +606,8 @@ def recall_precision_at_k(test_data, r, k):
     test_data should be a list? cause users may have different amount of pos items. shape (test_batch, k)
     pred_data : shape (test_batch, k) NOTE: pred_data should be pre-sorted
     k : top-k
+
+    Original code
     """
     right_pred = r[:, :k].sum(1)
     precis_n = k
@@ -566,6 +620,8 @@ def recall_precision_at_k(test_data, r, k):
 def mrr_at_k(r, k):
     """
     Mean Reciprocal Rank
+
+    New code
     """
     # Only select the k first columns
     pred_data = r[:, :k]
@@ -584,6 +640,8 @@ def ndcg_at_k_r(test_data, r, k):
     """
     Normalized Discounted Cumulative Gain
     rel_i = 1 or 0, so 2^{rel_i} - 1 = 1 or 0
+
+    Original code
     """
     assert len(r) == len(test_data)
     pred_data = r[:, :k]
@@ -605,6 +663,8 @@ def ndcg_at_k_r(test_data, r, k):
 def get_auc_score(all_item_scores, dataset, test_data):
     """
         design for a single user
+
+    original code
     """
     r_all = np.zeros((dataset.m_item,))
     r_all[test_data] = 1
@@ -614,6 +674,10 @@ def get_auc_score(all_item_scores, dataset, test_data):
 
 
 def get_label(test_data, pred_data):
+    """
+    Original code
+    """
+
     r = []
     for i in range(len(test_data)):
         groundTrue = test_data[i]
@@ -628,6 +692,9 @@ def get_label(test_data, pred_data):
 
 
 def print_config_info(config):
+    """
+    Original code
+    """
     attribute = [
         'bpr_batch_size', 'latent_dim_rec', 'lightGCN_n_layers', 'dropout', 'keep_prob', 'a_fold',
         'test_u_batch_size', 'multicore', 'lr', 'decay', 'pretrain', 'a_split', 'bigdata'

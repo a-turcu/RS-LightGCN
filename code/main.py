@@ -15,6 +15,10 @@ from dataloader import DataLoader
 
 
 def run_training(config: Config):
+    """
+    Original code. We added comments for readability and make a call to the 'update_top_ranked_items' method
+    of the ProcedureManager class. This is a new method that is used for the negative sampling.
+    """
     # Print config information
     print_config_info(config)
     # Set the seed
@@ -79,6 +83,8 @@ def run_training(config: Config):
 def output_csv_results(data_list, config):
     """
     Creates a csv output of the test results.
+
+    New function
     """
     df = pd.DataFrame(data_list)
     new_column_order = ['epoch'] + [c for c in df.columns.tolist() if c != 'epoch']
@@ -86,6 +92,9 @@ def output_csv_results(data_list, config):
 
 
 if __name__ == '__main__':
+    """
+    New code
+    """
     # Load the arguments
     args = parse_args()
     # args = FakeArgs()

@@ -18,6 +18,8 @@ import multiprocessing
 class ProcedureManager:
     """
     The ProcedureManager handles the training and testing process.
+
+    New class
     """
     def __init__(self, config):
         self.sampler_helper = utils.Sampling(config.seed, config.sampling)
@@ -32,6 +34,8 @@ class ProcedureManager:
     def bpr_train_original(self, dataset, model, loss, epoch, w=None, config=None):
         """
         Train method.
+
+        Original code
         """
         # Set the model to train mode
         model.train()
@@ -73,6 +77,8 @@ class ProcedureManager:
     def test_one_batch(self, data_batch):
         """
         Test method for a single data batch.
+
+        Original code. Added MRR.
         """
         # Extract the data batch
         sorted_items = data_batch[0].numpy()
@@ -98,6 +104,8 @@ class ProcedureManager:
     def test(self, dataset, model, epoch, w=None, multicore=0):
         """
         Test method.
+
+        Original code
         """
         # Set the test batch size
         u_batch_size = self.test_u_batch_size
@@ -208,6 +216,12 @@ class ProcedureManager:
             return results
 
     def update_top_ranked_items(self, dataset, model, multicore=0):
+        """
+        This method is used to obtain the top ranked items for each users with the current model.
+        It creates a pool of hard negative positive samples to be selected from.
+
+        New method based on original code
+        """
         hard_neg_len = int(dataset.m_item * 0.03)
         hard_neg_pool = int(dataset.m_item * 0.13)
         u_batch_size = self.test_u_batch_size

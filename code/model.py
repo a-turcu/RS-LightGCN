@@ -14,6 +14,9 @@ from torch import nn
 
 
 class BasicModel(nn.Module):
+    """
+    Original code
+    """
     def __init__(self):
         super().__init__()
 
@@ -22,6 +25,9 @@ class BasicModel(nn.Module):
 
 
 class PairWiseModel(BasicModel):
+    """
+    Original code
+    """
     def __init__(self):
         super().__init__()
 
@@ -38,6 +44,9 @@ class PairWiseModel(BasicModel):
 
 
 class PureMf(BasicModel):
+    """
+    Original code
+    """
     def __init__(self, config:dict, dataset: DataLoader):
         super().__init__()
         self.num_users = dataset.n_user
@@ -85,6 +94,9 @@ class PureMf(BasicModel):
 
 
 class LightGCN(BasicModel):
+    """
+    Original code
+    """
     def __init__(self, config: world.Config, dataset: DataLoader):
         super().__init__()
         self.config = config
