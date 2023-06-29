@@ -50,4 +50,4 @@ run LightGCN on **Gowalla** dataset:
 | results                        | Contains the test set performance                                   |
 | checkpoints                    | Contains the best checkpoint from each model run                    |
 
-In addition, detailed comments were added to the entire repository.
+Detailed comments and docstrings were added to the entire repository.
