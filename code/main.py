@@ -3,7 +3,6 @@ import pandas as pd
 import utils
 from model import PureMf, LightGCN
 from parse import parse_args
-from ultragcn import UltraGcn
 from world import Config, cprint, FakeArgs
 import torch
 from tensorboardX import SummaryWriter
@@ -12,7 +11,7 @@ import procedure
 from os.path import join
 from utils import print_config_info
 
-from dataloader import DataLoader, LastfmLoader
+from dataloader import DataLoader
 
 
 def run_training(config: Config):
@@ -22,12 +21,9 @@ def run_training(config: Config):
     utils.set_seed(config.seed)
     print(">>SEED:", config.seed)
     # Load the data
-    if config.dataset == 'lastfm':
-        dataset = LastfmLoader(config)
-    else:
-        dataset = DataLoader(config)
+    dataset = DataLoader(config)
     # Create a model string to model map
-    models = {'mf': PureMf, 'lgn': LightGCN, 'ugn': UltraGcn}
+    models = {'mf': PureMf, 'lgn': LightGCN}
     # Instantiate the recommender system model
     rec_model = models[config.model_name](config, dataset)
     # Move the model to the device
@@ -87,6 +83,7 @@ def output_csv_results(data_list, config):
     df = pd.DataFrame(data_list)
     new_column_order = ['epoch'] + [c for c in df.columns.tolist() if c != 'epoch']
     df[new_column_order].to_csv(utils.get_results_file_name(config), index=False)
+
 
 if __name__ == '__main__':
     # Load the arguments
