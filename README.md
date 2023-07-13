@@ -16,7 +16,7 @@ Graph Convolutional Networks (GCNs) have seen increased popularity in the contex
 
 ## Enviroment Requirement
 
-`conda env create -f environment.yaml`
+`conda env create -f environment.yml`
 
 ## Dataset
 
