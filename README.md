@@ -2,13 +2,13 @@
 
 ## Sampling Strategies for Enhanced Recommendation Performance: Advancements in LightGCN
 
-This repository has for goal to reproduce the results from the following paper:
+This repository has the goal to reproducing the results from the following paper:
 
 >SIGIR 2020. Xiangnan He, Kuan Deng ,Xiang Wang, Yan Li, Yongdong Zhang, Meng Wang(2020). LightGCN: Simplifying and Powering Graph Convolution Network for Recommendation, [Paper in arXiv](https://arxiv.org/abs/2002.02126).
 
 Authors: Alexandru Turcu, Bogdan Palfi, and Ryan Amaudruz
 
-In additon, we investigate whether sampling strategies can benefit the model prediction performance.
+In additon, we investigate if sampling strategies can improve the model prediction performance.
 
 ## Abstract
 
